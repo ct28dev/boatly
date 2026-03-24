@@ -1,0 +1,37 @@
+{
+  "name": "boatly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BOATLY - Thailand Boat Tourism Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "socket": "node socket-server.js",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:migrate": "cd database && npx knex migrate:latest",
+    "db:seed": "cd database && npx knex seed:run",
+    "db:reset": "cd database && npx knex migrate:rollback --all && npx knex migrate:latest && npx knex seed:run",
+    "docker:up": "docker-compose -f infrastructure/docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f infrastructure/docker/docker-compose.yml down",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0",
+    "socket.io": "^4.7.0"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

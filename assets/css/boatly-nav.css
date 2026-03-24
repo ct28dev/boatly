@@ -1,0 +1,81 @@
+/* เมนูล่าง BOATLY — ใช้ร่วม index.html + หน้า PHP */
+.boatly-nav-spacer {
+  height: 96px;
+  flex-shrink: 0;
+}
+
+.boatly-bottom-nav.bottom-nav {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92%;
+  max-width: 400px;
+  z-index: 9999 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 28px;
+  background: rgba(18, 24, 38, 0.94) !important;
+  backdrop-filter: blur(30px) !important;
+  -webkit-backdrop-filter: blur(30px) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4) !important;
+  border-top: none !important;
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
+}
+
+.boatly-bottom-nav .bottom-nav-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 4px;
+}
+
+.boatly-bottom-nav .bottom-nav-pill-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  width: 25%;
+  height: 44px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  z-index: 0;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 114, 255, 0.35);
+  transition: left 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.boatly-bottom-nav .nav-item {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: color 0.2s ease;
+}
+
+.boatly-bottom-nav .nav-item i {
+  font-size: 18px;
+  margin-bottom: 2px;
+}
+
+.boatly-bottom-nav .nav-item.active {
+  color: #fff;
+}
+
+.boatly-bottom-nav .nav-item:hover {
+  color: rgba(255, 255, 255, 0.9);
+}

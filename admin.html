@@ -1,0 +1,3302 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOATLY - Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --sidebar-bg: #0f172a;
+      --sidebar-hover: #1e293b;
+      --sidebar-active: rgba(0,119,182,0.15);
+      --ocean-500: #00b4d8;
+      --ocean-600: #0077b6;
+      --ocean-700: #023e8a;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --card-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: var(--text); display: flex; min-height: 100vh; }
+
+    /* Login Screen */
+    .login-screen {
+      position: fixed; inset: 0; z-index: 9999; background: linear-gradient(135deg, #0f172a 0%, #023e8a 50%, #0077b6 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-screen.hidden { display: none; }
+    .login-card {
+      background: #fff; border-radius: 20px; padding: 48px 40px; width: 420px; max-width: 90vw;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    }
+    .login-card .logo { text-align: center; margin-bottom: 32px; }
+    .login-card .logo-icon-lg {
+      width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, var(--ocean-700), var(--ocean-500));
+      display: inline-flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; margin-bottom: 16px;
+    }
+    .login-card .logo h2 { font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: 1px; }
+    .login-card .logo p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    .form-input {
+      width: 100%; height: 44px; border: 1px solid var(--border); border-radius: 10px;
+      padding: 0 14px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--ocean-600); box-shadow: 0 0 0 3px rgba(0,119,182,0.1); }
+    .form-textarea { height: auto; min-height: 80px; padding: 10px 14px; resize: vertical; }
+    .doc-upload-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .form-select { appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 14px center; }
+    .login-btn {
+      width: 100%; height: 46px; border: none; border-radius: 10px; font-family: inherit; font-size: 15px;
+      font-weight: 600; color: #fff; background: linear-gradient(135deg, var(--ocean-700), var(--ocean-600));
+      cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .login-btn:hover { box-shadow: 0 4px 16px rgba(0,119,182,0.3); transform: translateY(-1px); }
+    .login-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+    .login-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .login-error.show { display: block; }
+    input[type="checkbox"]:checked + span { background: var(--ocean-600) !important; }
+    input[type="checkbox"]:checked + span + .toggle-dot { transform: translateX(20px); }
+
+    /* Toast */
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 500; color: #fff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px;
+      animation: toastIn 0.3s ease; min-width: 280px;
+    }
+    .toast.success { background: #16a34a; }
+    .toast.error { background: #dc2626; }
+    .toast.info { background: var(--ocean-600); }
+    .toast.fadeout { animation: toastOut 0.3s ease forwards; }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(40px); } }
+
+    /* Confirm Dialog */
+    .confirm-overlay {
+      position: fixed; inset: 0; z-index: 9998; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .confirm-overlay.hidden { display: none; }
+    .confirm-box {
+      background: #fff; border-radius: 16px; padding: 32px; width: 400px; max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2); text-align: center;
+    }
+    .confirm-box .icon { width: 56px; height: 56px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 16px; }
+    .confirm-box .icon.warning { background: #fef3c7; color: #f59e0b; }
+    .confirm-box .icon.danger { background: #fee2e2; color: #dc2626; }
+    .confirm-box h3 { font-size: 18px; margin-bottom: 8px; }
+    .confirm-box p { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+    .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+    .confirm-actions .btn { min-width: 100px; justify-content: center; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover { background: #15803d; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 9997; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+      display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-box {
+      background: #fff; border-radius: 16px; width: 600px; max-width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: modalIn 0.25s ease;
+    }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between; padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-header h3 { font-size: 17px; font-weight: 700; }
+    .modal-close { width: 32px; height: 32px; border-radius: 8px; border: none; background: #f1f5f9; cursor: pointer; font-size: 14px; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { background: #e2e8f0; }
+    .modal-body { padding: 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Loading Spinner */
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    .spinner-dark { border-color: rgba(0,0,0,0.1); border-top-color: var(--ocean-600); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .page-loading { display: flex; align-items: center; justify-content: center; padding: 60px; flex-direction: column; gap: 12px; }
+    .page-loading .spinner-lg { width: 36px; height: 36px; border-width: 3px; }
+    .page-loading span { font-size: 14px; color: var(--muted); }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px; background: var(--sidebar-bg); color: #fff; display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; transition: transform 0.3s;
+    }
+    .sidebar-logo { padding: 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-logo .logo-icon { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--ocean-600), var(--ocean-500)); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .sidebar-logo h1 { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+    .sidebar-logo span { font-size: 11px; color: rgba(255,255,255,0.5); display: block; margin-top: 2px; }
+
+    .sidebar-nav { flex: 1; padding: 8px 12px; overflow-y: auto; padding-bottom: 12px; }
+    .nav-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; padding: 8px 12px 4px; }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px;
+      color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 500; cursor: pointer;
+      transition: all 0.2s; text-decoration: none; margin-bottom: 1px;
+    }
+    .sidebar-item:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-item.active { background: var(--sidebar-active); color: var(--ocean-500); }
+    .sidebar-item i { width: 20px; text-align: center; font-size: 15px; }
+    .sidebar-item .badge { margin-left: auto; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--ocean-600); color: #fff; }
+
+    .sidebar-user {
+      padding: 16px; border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sidebar-user .avatar { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--ocean-600), var(--ocean-500)); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+    .sidebar-user .info { flex: 1; }
+    .sidebar-user .info .name { font-size: 13px; font-weight: 600; }
+    .sidebar-user .info .role { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .sidebar-user .logout-btn { background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer; padding: 4px; transition: color 0.2s; }
+    .sidebar-user .logout-btn:hover { color: #ef4444; }
+
+    .main { flex: 1; margin-left: 260px; }
+    .topbar {
+      height: 64px; background: #fff; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar .breadcrumb { font-size: 14px; color: var(--muted); }
+    .topbar .breadcrumb strong { color: var(--text); }
+    .topbar-actions { display: flex; align-items: center; gap: 16px; }
+    .topbar-search { position: relative; }
+    .topbar-search input {
+      width: 240px; height: 38px; border: 1px solid var(--border); border-radius: 10px;
+      padding: 0 12px 0 36px; font-size: 13px; font-family: inherit; outline: none;
+      transition: border-color 0.2s;
+    }
+    .topbar-search input:focus { border-color: var(--ocean-600); }
+    .topbar-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+    .topbar-btn {
+      width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
+      background: #fff; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--muted); position: relative; transition: all 0.2s;
+    }
+    .topbar-btn:hover { background: #f8fafc; color: var(--text); }
+    .topbar-btn .notif-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; border: 2px solid #fff; }
+
+    .content { padding: 32px; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; }
+    .page-header p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .btn { padding: 10px 20px; border-radius: 10px; border: none; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, var(--ocean-700), var(--ocean-600)); color: #fff; }
+    .btn-primary:hover { box-shadow: 0 4px 16px rgba(0,119,182,0.3); transform: translateY(-1px); }
+    .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: #f8fafc; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: #fff; border-radius: 16px; padding: 20px; border: 1px solid var(--border);
+      transition: box-shadow 0.2s;
+    }
+    .stat-card:hover { box-shadow: var(--card-shadow); }
+    .stat-card .stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .stat-card .stat-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .stat-card .stat-change { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .stat-card .stat-change.up { color: #16a34a; }
+    .stat-card .stat-change.down { color: #dc2626; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+    .stat-card .stat-label { font-size: 13px; color: var(--muted); }
+
+    .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card { background: #fff; border-radius: 16px; padding: 20px; border: 1px solid var(--border); }
+    .chart-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    .chart-card canvas { max-height: 260px; }
+
+    .table-card { background: #fff; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+    .table-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .table-header h3 { font-size: 15px; font-weight: 600; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; background: #f8fafc; border-bottom: 1px solid var(--border); }
+    td { padding: 14px 20px; font-size: 13px; border-bottom: 1px solid #f8fafc; }
+    tr:hover td { background: #fafbfc; }
+
+    .status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-confirmed { background: #dcfce7; color: #166534; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-completed { background: #e0e7ff; color: #3730a3; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+    .status-active { background: #dcfce7; color: #166534; }
+    .status-approved { background: #dcfce7; color: #166534; }
+    .status-rejected { background: #fee2e2; color: #991b1b; }
+    .status-suspended { background: #fee2e2; color: #991b1b; }
+    .status-inactive { background: #f1f5f9; color: #64748b; }
+    .status-coming_soon { background: #fef3c7; color: #92400e; }
+    .status-draft { background: #f1f5f9; color: #64748b; }
+    .status-paid { background: #dcfce7; color: #166534; }
+
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-cell .avatar { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; color: #fff; flex-shrink: 0; }
+    .action-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); margin-right: 4px; transition: all 0.2s; }
+    .action-btn:hover { background: #f8fafc; color: var(--text); }
+
+    .quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .quick-action {
+      background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+      display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s;
+      text-decoration: none; color: inherit;
+    }
+    .quick-action:hover { box-shadow: var(--card-shadow); transform: translateY(-2px); }
+    .quick-action .qa-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .quick-action .qa-text { font-size: 13px; font-weight: 600; }
+
+    .filter-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-tab {
+      padding: 8px 16px; border-radius: 8px; background: #f1f5f9; font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s; border: none; font-family: inherit;
+    }
+    .filter-tab.active { background: var(--ocean-600); color: #fff; font-weight: 600; }
+    .filter-tab:hover:not(.active) { background: #e2e8f0; }
+    .filter-tab.active-warning { background: #f59e0b; color: #fff; font-weight: 600; }
+
+    .search-bar { position: relative; margin-bottom: 16px; }
+    .search-bar input {
+      width: 320px; max-width: 100%; height: 40px; border: 1px solid var(--border); border-radius: 10px;
+      padding: 0 14px 0 38px; font-size: 13px; font-family: inherit; outline: none;
+    }
+    .search-bar input:focus { border-color: var(--ocean-600); }
+    .search-bar i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; }
+    .pagination-info { font-size: 13px; color: var(--muted); }
+    .pagination-btns { display: flex; gap: 4px; }
+    .page-btn {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: #fff; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .page-btn:hover { background: #f8fafc; }
+    .page-btn.active { background: var(--ocean-600); color: #fff; border-color: var(--ocean-600); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .detail-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .detail-row .label { font-size: 13px; color: var(--muted); min-width: 120px; }
+    .detail-row .value { font-size: 13px; font-weight: 500; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+    .empty-state p { font-size: 14px; }
+
+    .back-link { display: none; color: #fff; font-size: 14px; text-decoration: none; margin-bottom: 16px; margin-left: 20px; margin-top: 16px; }
+
+    @media (max-width: 1024px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+      .quick-actions { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .topbar .breadcrumb { display: none; }
+      .back-link { display: block; }
+      .content { padding: 16px; }
+      .filter-tabs { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-overlay hidden" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="icon warning" id="confirmIcon"><i class="fas fa-exclamation-triangle"></i></div>
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmMessage">This action cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn btn-outline" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirmBtn" onclick="executeConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modalTitle">Modal</h3>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="logo">
+      <div class="logo-icon-lg"><i class="fas fa-anchor"></i></div>
+      <h2>BOATLY</h2>
+      <p>Admin Dashboard Login</p>
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" class="form-input" id="loginEmail" placeholder="admin@boatly.com" required value="admin@boatly.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" class="form-input" id="loginPassword" placeholder="Enter password" required>
+      </div>
+      <button type="submit" class="login-btn" id="loginBtn">
+        <span id="loginBtnText">Sign In</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <a href="#" class="back-link" onclick="document.getElementById('sidebar').classList.remove('open')"><i class="fas fa-arrow-left" style="margin-right:8px"></i>ปิดเมนู</a>
+  <div class="sidebar-logo">
+    <div class="logo-icon"><i class="fas fa-anchor"></i></div>
+    <div><h1>BOATLY</h1><span>Admin Dashboard</span></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Main</div>
+    <a class="sidebar-item active" data-page="dashboard" onclick="showPage('dashboard', this)"><i class="fas fa-chart-line"></i>Dashboard</a>
+    <a class="sidebar-item" data-page="bookings" onclick="showPage('bookings', this)"><i class="fas fa-calendar-check"></i>Bookings<span class="badge" id="badgeBookings"></span></a>
+    <a class="sidebar-item" data-page="tours" onclick="showPage('tours', this)"><i class="fas fa-ship"></i>Tours</a>
+    <div class="nav-label">Management</div>
+    <a class="sidebar-item" data-page="providers" onclick="showPage('providers', this)"><i class="fas fa-building"></i>Providers<span class="badge" id="badgeProviders" style="background:#f59e0b"></span></a>
+    <a class="sidebar-item" data-page="destinations" onclick="showPage('destinations', this)"><i class="fas fa-map-marker-alt"></i>Destinations</a>
+    <a class="sidebar-item" data-page="boat-types" onclick="showPage('boat-types', this)"><i class="fas fa-anchor"></i>ประเภทเรือ</a>
+    <a class="sidebar-item" data-page="boats" onclick="showPage('boats', this)"><i class="fas fa-sailboat"></i>Boats</a>
+    <a class="sidebar-item" data-page="reviews" onclick="showPage('reviews', this)"><i class="fas fa-star"></i>Reviews<span class="badge" id="badgeReviews" style="background:#ef4444"></span></a>
+    <div class="nav-label">Finance</div>
+    <a class="sidebar-item" data-page="finance" onclick="showPage('finance', this)"><i class="fas fa-wallet"></i>Finance</a>
+    <a class="sidebar-item" data-page="settings" onclick="showPage('settings', this)" style="background:linear-gradient(135deg,rgba(0,180,216,0.15),rgba(0,119,182,0.15));border:1px solid rgba(0,180,216,0.3);margin-top:12px"><i class="fas fa-cog" style="color:#00b4d8"></i><span style="color:#00b4d8;font-weight:600">⚙ Settings / ตั้งค่า QR</span></a>
+    <div class="nav-label">Content</div>
+    <a class="sidebar-item" data-page="cms" onclick="showPage('cms', this)"><i class="fas fa-file-alt"></i>ความเห็น / ศูนย์ช่วยเหลือ / ประกาศ</a>
+    <a class="sidebar-item" data-page="promotions" data-require-module="promotions" onclick="showPage('promotions', this)"><i class="fas fa-tags"></i>โปรโมชั่น (หน้าแรก)</a>
+    <div class="nav-label">System</div>
+    <a class="sidebar-item" data-page="users" onclick="showPage('users', this)"><i class="fas fa-users"></i>Users</a>
+    <a class="sidebar-item" data-page="staff" onclick="showPage('staff', this)"><i class="fas fa-user-shield"></i>Staff / ผู้ช่วยแอดมิน</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="avatar" id="sidebarAvatar">A</div>
+    <div class="info"><div class="name" id="sidebarName">Admin</div><div class="role" id="sidebarRole">Super Admin</div></div>
+    <button class="logout-btn" onclick="handleLogout()" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="topbar-btn" style="display:none" id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
+      <div class="breadcrumb">Admin / <strong id="pageTitle">Dashboard</strong></div>
+    </div>
+    <div class="topbar-actions">
+      <div class="topbar-search"><i class="fas fa-search"></i><input type="text" placeholder="Search..." id="globalSearch" onkeydown="if(event.key==='Enter')handleGlobalSearch()"></div>
+      <button class="topbar-btn" onclick="showPage('settings')" title="Settings / ตั้งค่า" style="position:relative"><i class="fas fa-cog"></i></button>
+      <button class="topbar-btn"><i class="fas fa-bell"></i><div class="notif-dot"></div></button>
+      <button class="topbar-btn" onclick="window.location.href='index.html'" title="View Customer App"><i class="fas fa-external-link-alt"></i></button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Dashboard Page -->
+    <div id="page-dashboard">
+      <div class="page-header">
+        <div><h1>Dashboard</h1><p>Welcome back! Here's what's happening with BOATLY.</p></div>
+        <button class="btn btn-primary" onclick="showPage('tours', document.querySelector('[data-page=tours]')); setTimeout(()=>openTourModal(),100)"><i class="fas fa-plus"></i>Add Tour</button>
+      </div>
+      <div class="stats-grid" id="dashboardStats">
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card"><h3><i class="fas fa-chart-area" style="color:var(--ocean-600);margin-right:8px"></i>Revenue Overview</h3><canvas id="revenueChart"></canvas></div>
+        <div class="chart-card"><h3><i class="fas fa-chart-pie" style="color:var(--ocean-600);margin-right:8px"></i>Bookings by Type</h3><canvas id="pieChart"></canvas></div>
+      </div>
+      <div class="quick-actions">
+        <a class="quick-action" onclick="showPage('tours', document.querySelector('[data-page=tours]')); setTimeout(()=>openTourModal(),100)"><div class="qa-icon" style="background:#eff6ff;color:#3b82f6"><i class="fas fa-plus"></i></div><div class="qa-text">Add New Tour</div></a>
+        <a class="quick-action" onclick="showPage('bookings', document.querySelector('[data-page=bookings]'))"><div class="qa-icon" style="background:#f0fdf4;color:#22c55e"><i class="fas fa-calendar-check"></i></div><div class="qa-text">View Bookings</div></a>
+        <a class="quick-action" onclick="showPage('reviews', document.querySelector('[data-page=reviews]'))"><div class="qa-icon" style="background:#fef3c7;color:#f59e0b"><i class="fas fa-star"></i></div><div class="qa-text">Moderate Reviews</div></a>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><h3>Recent Bookings</h3><button class="btn btn-outline" onclick="showPage('bookings', document.querySelector('[data-page=bookings]'))">View All</button></div>
+        <table>
+          <thead><tr><th>Booking ID</th><th>Customer</th><th>Tour</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="recentBookingsBody"><tr><td colspan="7"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bookings Page -->
+    <div id="page-bookings" style="display:none">
+      <div class="page-header"><div><h1>Bookings</h1><p>Manage all bookings across the platform. แยกตามผู้ให้บริการ</p></div><button class="btn btn-outline" onclick="exportBookings()"><i class="fas fa-download"></i>Export</button></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="filter-tabs" id="bookingFilters"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;color:var(--muted);white-space:nowrap">ผู้ให้บริการ:</label>
+          <select id="bookingProviderFilter" class="form-input form-select" style="width:200px;height:36px;font-size:13px" onchange="bookingsPage=1;loadBookings()">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+      </div>
+      <div class="search-bar"><i class="fas fa-search"></i><input type="text" placeholder="Search by customer, booking ID, or provider..." id="bookingSearch" onkeydown="if(event.key==='Enter')loadBookings()"></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>ID</th><th>Customer</th><th>ผู้ให้บริการ</th><th>Tour</th><th>Date</th><th>Passengers</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="bookingsBody"><tr><td colspan="9"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+        <div class="pagination" id="bookingsPagination"></div>
+      </div>
+    </div>
+
+    <!-- Tours Page -->
+    <div id="page-tours" style="display:none">
+      <div class="page-header"><div><h1>Tours</h1><p>Manage all boat tours on the platform. แยกตามผู้ให้บริการ</p></div><button class="btn btn-primary" onclick="openTourModal()"><i class="fas fa-plus"></i>Add Tour</button></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="filter-tabs" id="tourFilters"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;color:var(--muted);white-space:nowrap">ผู้ให้บริการ:</label>
+          <select id="tourProviderFilter" class="form-input form-select" style="width:200px;height:36px;font-size:13px" onchange="loadTours()">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+      </div>
+      <div class="search-bar"><i class="fas fa-search"></i><input type="text" placeholder="Search tours..." id="tourSearch" onkeydown="if(event.key==='Enter')loadTours()"></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Tour</th><th>Provider</th><th>Duration</th><th>Price</th><th>Bookings</th><th>Rating</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="toursBody"><tr><td colspan="8"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Providers Page -->
+    <div id="page-providers" style="display:none">
+      <div class="page-header"><div><h1>Providers</h1><p>Manage boat tour operators.</p></div><button class="btn btn-primary" onclick="openProviderModal()"><i class="fas fa-plus"></i>Add Provider</button></div>
+      <div class="filter-tabs" id="providerFilters"></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Company</th><th>Contact</th><th>Boats</th><th>Tours</th><th>Revenue</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="providersBody"><tr><td colspan="7"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Destinations Page -->
+    <div id="page-destinations" style="display:none">
+      <div class="page-header"><div><h1>Destinations</h1><p>Manage destinations.</p></div><button class="btn btn-primary" onclick="openDestinationModal()"><i class="fas fa-plus"></i>Add Destination</button></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Name</th><th>Name (TH)</th><th>Slug</th><th>Province</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="destinationsBody"><tr><td colspan="6"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Boat Types Page -->
+    <div id="page-boat-types" style="display:none">
+      <div class="page-header"><div><h1>ประเภทเรือ</h1><p>จัดการประเภทเรือที่ใช้ได้ทั้งระบบ (Operator และ Partner จะเห็นในฟอร์มเพิ่มเรือ)</p></div><button class="btn btn-primary" onclick="openBoatTypeModal()"><i class="fas fa-plus"></i>เพิ่มประเภทเรือ</button></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Slug</th><th>ชื่อไทย</th><th>ชื่ออังกฤษ</th><th>สถานะ</th><th>ลำดับ</th><th>จัดการ</th></tr></thead>
+          <tbody id="boatTypesBody"><tr><td colspan="6"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Boats Page -->
+    <div id="page-boats" style="display:none">
+      <div class="page-header"><div><h1>Boats</h1><p>Manage fleet inventory.</p></div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Boat Name</th><th>Type</th><th>Provider</th><th>Capacity</th><th>Status</th></tr></thead>
+          <tbody id="boatsBody"><tr><td colspan="5"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Reviews Page -->
+    <div id="page-reviews" style="display:none">
+      <div class="page-header"><div><h1>Reviews</h1><p>Moderate user reviews.</p></div></div>
+      <div class="filter-tabs" id="reviewFilters"></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>User</th><th>Tour</th><th>Rating</th><th>Comment</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="reviewsBody"><tr><td colspan="7"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Finance Page -->
+    <div id="page-finance" style="display:none">
+      <div class="page-header"><div><h1>Finance</h1><p>Revenue overview and payouts.</p></div><button class="btn btn-outline" onclick="exportFinance()"><i class="fas fa-download"></i>Export Report</button></div>
+      <div class="stats-grid" id="financeStats">
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+        <div class="stat-card"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div></div></div>
+      </div>
+      <div class="chart-card" style="margin-bottom:24px"><h3><i class="fas fa-chart-bar" style="color:var(--ocean-600);margin-right:8px"></i>Monthly Revenue</h3><canvas id="financeChart"></canvas></div>
+      <div class="table-card">
+        <div class="table-header"><h3>Provider Payouts</h3></div>
+        <table>
+          <thead><tr><th>Provider</th><th>Revenue</th><th>Commission</th><th>Net Payout</th><th>Status</th></tr></thead>
+          <tbody id="payoutsBody"><tr><td colspan="5"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CMS Page: ความเห็น / ศูนย์ช่วยเหลือ / ประกาศ -->
+    <div id="page-cms" style="display:none">
+      <div class="page-header"><div><h1>ความเห็น / ศูนย์ช่วยเหลือ / ประกาศ</h1><p>จัดการเนื้อหาที่แสดงในโปรไฟล์ลูกค้าและพาร์ทเนอร์ (Admin เป็นผู้เพิ่มข้อมูล)</p></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="table-card" style="padding:24px">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-comment-dots" style="color:#7c3aed;margin-right:8px"></i>ความเห็น (Feedback)</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px">ข้อความแนะนำบนหน้า "ความเห็น" (ลูกค้าส่งได้) + ดูรายการความเห็นที่ลูกค้าส่ง</p>
+          <div class="form-group"><label>หัวข้อ (TH)</label><input type="text" id="cmsFeedbackTitleTh" class="form-input" placeholder="เช่น ส่งความคิดเห็นให้เรา"></div>
+          <div class="form-group"><label>เนื้อหา (TH)</label><textarea id="cmsFeedbackBodyTh" class="form-input form-textarea" placeholder="ข้อความแนะนำ"></textarea></div>
+          <button class="btn btn-primary" onclick="saveCmsFeedbackIntro()"><i class="fas fa-save"></i> บันทึก</button>
+          <div style="margin-top:16px"><a href="javascript:void(0)" onclick="openFeedbackSubmissionsModal()" style="color:var(--ocean-600);font-size:13px">ดูความเห็นที่ลูกค้าส่ง</a></div>
+        </div>
+        <div class="table-card" style="padding:24px">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-life-ring" style="color:#059669;margin-right:8px"></i>ศูนย์ช่วยเหลือ</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px">รายการ FAQ / คำถามที่พบบ่อย</p>
+          <div id="cmsHelpList"></div>
+          <button class="btn btn-primary" onclick="openCmsHelpModal()" style="margin-top:12px"><i class="fas fa-plus"></i> เพิ่มรายการ</button>
+        </div>
+      </div>
+      <div class="table-card" style="margin-top:20px;padding:24px">
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-bullhorn" style="color:#d97706;margin-right:8px"></i>ประกาศ (สำหรับพาร์ทเนอร์)</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">ข่าวสารที่แสดงในโปรไฟล์พาร์ทเนอร์</p>
+        <div id="cmsAnnouncementsList"></div>
+        <button class="btn btn-primary" onclick="openCmsAnnouncementModal()" style="margin-top:12px"><i class="fas fa-plus"></i> เพิ่มประกาศ</button>
+      </div>
+    </div>
+
+    <!-- Promotions (home carousel, max 8 visible) -->
+    <div id="page-promotions" style="display:none">
+      <div class="page-header">
+        <div>
+          <h1>โปรโมชั่น (การ์ดหน้าแรก)</h1>
+          <p>แสดงบนแอปลูกค้าได้สูงสุด <strong>8</strong> การ์ดที่เปิดใช้งานพร้อมกัน — แก้ไขได้เฉพาะแอดมินและ Staff ที่ได้รับสิทธิ์ module <code>promotions</code></p>
+        </div>
+        <button class="btn btn-primary" onclick="openPromotionModal(null)"><i class="fas fa-plus"></i> เพิ่มโปร</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>ลำดับ</th>
+              <th>หัวข้อ (TH)</th>
+              <th>โค้ด</th>
+              <th>ส่วนลด</th>
+              <th>สถานะ</th>
+              <th>วันที่</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="promotionsBody">
+            <tr><td colspan="7"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Staff Page -->
+    <div id="page-staff" style="display:none">
+      <div class="page-header"><div><h1>Staff / ผู้ช่วยแอดมิน</h1><p>เพิ่มผู้ช่วยที่มีสิทธิ์จำกัดตามที่แอดมินกำหนด</p></div><button class="btn btn-primary" onclick="openStaffModal()"><i class="fas fa-plus"></i>เพิ่ม Staff</button></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>ชื่อ</th><th>Email</th><th>สิทธิ์ (Modules)</th><th>จัดการ</th></tr></thead>
+          <tbody id="staffBody"><tr><td colspan="4"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Users Page -->
+    <div id="page-users" style="display:none">
+      <div class="page-header"><div><h1>Users</h1><p>Manage all registered users.</p></div></div>
+      <div class="search-bar"><i class="fas fa-search"></i><input type="text" placeholder="Search by name or email..." id="userSearch" onkeydown="if(event.key==='Enter')loadUsers()"></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Bookings</th><th>Joined</th></tr></thead>
+          <tbody id="usersBody"><tr><td colspan="5"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr></tbody>
+        </table>
+        <div class="pagination" id="usersPagination"></div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS PAGE ===== -->
+    <div id="page-settings" style="display:none">
+      <div class="page-header"><div><h1><i class="fas fa-cog" style="margin-right:8px"></i>Settings</h1><p>ตั้งค่าระบบการชำระเงิน QR Code และหัวข้อ AI แนะนำทริป</p></div></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:960px">
+        <!-- Payment QR Settings -->
+        <div class="table-card" style="padding:24px">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-qrcode" style="color:var(--ocean-600);margin-right:8px"></i>QR Code Payment</h3>
+
+          <div class="form-group">
+            <label>QR Code Mode</label>
+            <select id="settQrMode" class="form-input form-select" onchange="toggleQrMode()">
+              <option value="promptpay">PromptPay (สร้างอัตโนมัติจากเบอร์/ID)</option>
+              <option value="custom">Custom QR (อัปโหลดรูป QR เอง)</option>
+            </select>
+          </div>
+
+          <div id="settPromptPaySection">
+            <div class="form-group">
+              <label>PromptPay ID (เบอร์โทรหรือเลขบัตร ปชช.)</label>
+              <input type="text" id="settPromptPayId" class="form-input" placeholder="เช่น 0812345678 หรือ 1234567890123">
+              <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block">เบอร์โทร 10 หลัก หรือ เลขบัตร ปชช. 13 หลัก</small>
+            </div>
+            <div class="form-group">
+              <label>ชื่อบัญชี (แสดงให้ลูกค้าเห็น)</label>
+              <input type="text" id="settPromptPayName" class="form-input" placeholder="เช่น BOATLY CO.,LTD">
+            </div>
+          </div>
+
+          <div id="settCustomQrSection" style="display:none">
+            <div class="form-group">
+              <label>อัปโหลดรูป QR Code</label>
+              <div id="settQrPreview" style="width:180px;height:180px;border:2px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;overflow:hidden;cursor:pointer;background:#f8fafc" onclick="document.getElementById('settQrFile').click()">
+                <div style="text-align:center;color:var(--muted)"><i class="fas fa-cloud-upload-alt" style="font-size:32px;display:block;margin-bottom:8px"></i><span style="font-size:12px">คลิกเพื่ออัปโหลด</span></div>
+              </div>
+              <input type="file" id="settQrFile" accept="image/*" style="display:none" onchange="previewQrImage(this)">
+              <small style="color:var(--muted);font-size:11px">รูป QR Code ที่คุณเตรียมไว้เอง (PNG/JPG)</small>
+            </div>
+            <div class="form-group">
+              <label>ชื่อบัญชี</label>
+              <input type="text" id="settCustomQrName" class="form-input" placeholder="เช่น BOATLY CO.,LTD">
+            </div>
+          </div>
+
+          <button class="login-btn" onclick="saveQrSettings()" style="margin-top:8px"><i class="fas fa-save"></i> บันทึกการตั้งค่า QR</button>
+          <div id="settQrStatus" style="margin-top:8px;font-size:12px"></div>
+        </div>
+
+        <!-- Payment Methods Toggle -->
+        <div class="table-card" style="padding:24px">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-credit-card" style="color:var(--ocean-600);margin-right:8px"></i>วิธีการชำระเงิน</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px">เปิด/ปิดวิธีชำระเงินที่ลูกค้าเลือกได้</p>
+
+          <div id="settPaymentMethods">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <i class="fas fa-qrcode" style="font-size:18px;color:#22c55e;width:24px;text-align:center"></i>
+                <div><div style="font-size:14px;font-weight:600">QR Payment / PromptPay</div><div style="font-size:11px;color:var(--muted)">สแกน QR Code ชำระทันที</div></div>
+              </div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="settPayQr" checked onchange="savePaymentToggles()" style="display:none"><span style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;cursor:pointer;transition:0.3s"></span><span class="toggle-dot" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <i class="fas fa-money-bill-wave" style="font-size:18px;color:#eab308;width:24px;text-align:center"></i>
+                <div><div style="font-size:14px;font-weight:600">จ่ายที่ท่าเรือ (COD)</div><div style="font-size:11px;color:var(--muted)">ชำระเงินสดที่จุดขึ้นเรือ</div></div>
+              </div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="settPayCod" onchange="savePaymentToggles()" style="display:none"><span style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;cursor:pointer;transition:0.3s"></span><span class="toggle-dot" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <i class="fas fa-credit-card" style="font-size:18px;color:#8b5cf6;width:24px;text-align:center"></i>
+                <div><div style="font-size:14px;font-weight:600">บัตรเครดิต / เดบิต</div><div style="font-size:11px;color:var(--muted)">ชำระผ่านบัตร (เร็วๆ นี้)</div></div>
+              </div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="settPayCard" onchange="savePaymentToggles()" style="display:none"><span style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;cursor:pointer;transition:0.3s"></span><span class="toggle-dot" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span></label>
+            </div>
+          </div>
+          <div id="settPayStatus" style="margin-top:8px;font-size:12px"></div>
+        </div>
+
+        <!-- Tip System Toggle -->
+        <div class="table-card" style="padding:24px">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-hand-holding-heart" style="color:#a855f7;margin-right:8px"></i>ระบบทิป</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px">เปิด/ปิดระบบให้ลูกค้าส่งทิปให้พาร์ทเนอร์หลังจบทริป</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <i class="fas fa-hand-holding-heart" style="font-size:18px;color:#a855f7;width:24px;text-align:center"></i>
+              <div><div style="font-size:14px;font-weight:600">ระบบทิป</div><div style="font-size:11px;color:var(--muted)">ลูกค้าสามารถให้ทิปหลังจบทริป (QR PromptPay)</div></div>
+            </div>
+            <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="settTipEnabled" onchange="saveTipSettings()" style="display:none"><span style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;cursor:pointer;transition:0.3s"></span><span class="toggle-dot" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span></label>
+          </div>
+          <div id="settTipStatus" style="margin-top:8px;font-size:12px"></div>
+        </div>
+
+        <!-- Dynamic Pricing Toggle -->
+        <div class="table-card" style="padding:24px">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-chart-line" style="color:#059669;margin-right:8px"></i>Dynamic Pricing</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px">เปิด/ปิดราคาแบบไดนามิก (ตามฤดูกาล/ช่วงเวลา) จาก pricing_rules</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <i class="fas fa-chart-line" style="font-size:18px;color:#059669;width:24px;text-align:center"></i>
+              <div><div style="font-size:14px;font-weight:600">Dynamic Pricing</div><div style="font-size:11px;color:var(--muted)">ราคา x multiplier ตาม pricing_rules (Low/High season, Holiday)</div></div>
+            </div>
+            <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="settDynamicPricing" onchange="saveDynamicPricing()" style="display:none"><span style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;cursor:pointer;transition:0.3s"></span><span class="toggle-dot" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span></label>
+          </div>
+          <div id="settDynamicPricingStatus" style="margin-top:8px;font-size:12px"></div>
+        </div>
+
+        <!-- AI หัวข้อความสนใจ (ลูกค้า — ฟอร์ม AI แนะนำทริป) -->
+        <div class="table-card" style="padding:24px;grid-column:1 / -1">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:8px"><i class="fas fa-tags" style="color:var(--ocean-600);margin-right:8px"></i>AI — หัวข้อความสนใจ</h3>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px">กำหนดหัวข้อที่ลูกค้าเลือกได้ในฟอร์ม <strong>AI แนะนำทริป</strong> (สูงสุด 40 หัวข้อ, แต่ละหัวข้อไม่เกิน 40 ตัวอักษร)</p>
+          <div id="settAiTopicsList" style="display:flex;flex-direction:column;gap:8px;max-width:560px"></div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center">
+            <button type="button" onclick="addAdminAiTopicRow()" style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:600;font-size:13px;font-family:inherit"><i class="fas fa-plus"></i> เพิ่มหัวข้อ</button>
+            <button type="button" class="login-btn" onclick="saveAiInterestsAdmin()" style="width:auto;padding:8px 20px;margin-top:0;font-size:13px"><i class="fas fa-save"></i> บันทึกหัวข้อ AI</button>
+          </div>
+          <div id="settAiTopicsStatus" style="margin-top:10px;font-size:12px"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const APP_PATH_PREFIX = (function () {
+  const p = window.location.pathname || '';
+  if (p.startsWith('/boatly')) return '/boatly';
+  if (p.startsWith('/boathub')) return '/boathub';
+  return '/boatly';
+})();
+// ─── AdminAPI Class ────────────────────────────────────────────────────
+class AdminAPI {
+  constructor() {
+    const p = window.location.pathname || '';
+    let base = '/api';
+    if (p.startsWith('/boatly')) base = '/boatly/api';
+    else if (p.startsWith('/boathub')) base = '/boathub/api';
+    else if (p.includes('/admin')) {
+      const dir = p.substring(0, p.lastIndexOf('/') + 1);
+      base = (dir || '/') + 'api';
+    }
+    this.base = base;
+    this.token = localStorage.getItem('boatly_admin_token') || localStorage.getItem('boathub_admin_token');
+  }
+
+  headers(json = true) {
+    const h = {};
+    if (this.token) h['Authorization'] = 'Bearer ' + this.token;
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  }
+
+  async request(method, path, body = null) {
+    let opts = { method, headers: { ...this.headers() } };
+    if (body) opts.body = JSON.stringify(body);
+    if (method === 'PUT' || method === 'DELETE') {
+      opts.headers['X-HTTP-Method-Override'] = method;
+      opts.method = 'POST';
+    }
+    const url = this.base + path;
+    try {
+      const res = await fetch(url, opts);
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch(e) {
+        console.error('API parse error:', path, res.status, text.substring(0, 500));
+        throw new Error(res.status === 404 ? 'API not found (404). Check base path.' : 'Server response error: ' + (text.substring(0, 100) || res.status));
+      }
+      if (res.status === 401 && path !== '/auth/login') {
+        localStorage.removeItem('boatly_admin_token');
+        localStorage.removeItem('boathub_admin_token');
+        this.token = null;
+        showLoginScreen();
+        throw new Error('Session expired');
+      }
+      if (!data.success && data.message) throw new Error(data.message);
+      return data;
+    } catch(e) {
+      if (e.message === 'Session expired') throw e;
+      console.error('API fetch error:', method, url, e);
+      throw e;
+    }
+  }
+
+  get(path) { return this.request('GET', path); }
+  post(path, body) { return this.request('POST', path, body); }
+  put(path, body) { return this.request('PUT', path, body); }
+  del(path) { return this.request('DELETE', path); }
+
+  async uploadFile(path, formData) {
+    const opts = { method: 'POST', body: formData };
+    opts.headers = {};
+    if (this.token) {
+      const b = 'Bearer ' + this.token;
+      opts.headers['Authorization'] = b;
+      opts.headers['X-Authorization'] = b;
+    }
+    const res = await fetch(this.base + path, opts);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { throw new Error('Server response error'); }
+    if (res.status === 401) { this.clearToken(); showLoginScreen(); throw new Error('Session expired'); }
+    if (!data.success) throw new Error(data.message || (res.status >= 400 ? 'Upload failed (' + res.status + ')' : 'Request failed'));
+    return data;
+  }
+
+  setToken(t) {
+    this.token = t;
+    if (t) {
+      localStorage.setItem('boatly_admin_token', t);
+      localStorage.removeItem('boathub_admin_token');
+    } else this.clearToken();
+  }
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('boatly_admin_token');
+    localStorage.removeItem('boathub_admin_token');
+  }
+}
+
+const api = new AdminAPI();
+
+// ─── Global State ──────────────────────────────────────────────────────
+let currentPage = 'dashboard';
+let revenueChartInstance = null;
+let pieChartInstance = null;
+let financeChartInstance = null;
+let bookingsPage = 1;
+let bookingsFilter = '';
+let toursData = [];
+let providersData = [];
+let reviewsData = [];
+let usersPage = 1;
+let confirmCallback = null;
+
+// ─── Utility Functions ─────────────────────────────────────────────────
+function formatCurrency(amount) {
+  if (amount == null) return '฿0';
+  const n = Number(amount);
+  if (n >= 1000000) return '฿' + (n / 1000000).toFixed(2) + 'M';
+  if (n >= 1000) return '฿' + n.toLocaleString();
+  return '฿' + n;
+}
+
+function formatCurrencyFull(amount) {
+  return '฿' + Number(amount || 0).toLocaleString();
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+function statusClass(s) {
+  if (!s) return '';
+  return 'status-' + s.toLowerCase();
+}
+
+function statusLabel(s) {
+  if (!s) return '-';
+  const map = { coming_soon: 'Coming Soon', inactive: 'Inactive', active: 'Active', approved: 'Approved', pending: 'Pending', suspended: 'Suspended', draft: 'Draft', rejected: 'Rejected', confirmed: 'Confirmed', cancelled: 'Cancelled', completed: 'Completed', paid: 'Paid' };
+  return map[s.toLowerCase()] || (s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' '));
+}
+
+function avatarColor(name) {
+  const colors = [
+    'linear-gradient(135deg,#6366f1,#8b5cf6)',
+    'linear-gradient(135deg,#ec4899,#f472b6)',
+    'linear-gradient(135deg,#f97316,#fbbf24)',
+    'linear-gradient(135deg,#22c55e,#4ade80)',
+    'linear-gradient(135deg,#06b6d4,#22d3ee)',
+    'linear-gradient(135deg,#8b5cf6,#a78bfa)',
+    'linear-gradient(135deg,#ef4444,#f87171)',
+  ];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function avatarLetter(name) {
+  if (!name) return '?';
+  return name.charAt(0).toUpperCase();
+}
+
+function renderStars(rating) {
+  const r = Math.round(Number(rating) || 0);
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    html += `<i class="fa${i <= r ? 's' : 'r'} fa-star"></i>`;
+  }
+  return html;
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────
+function toast(message, type = 'success') {
+  const c = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+  el.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${message}</span>`;
+  c.appendChild(el);
+  setTimeout(() => { el.classList.add('fadeout'); setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ─── Confirm Dialog ────────────────────────────────────────────────────
+function showConfirm(title, message, callback, isDanger = true) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  const icon = document.getElementById('confirmIcon');
+  const btn = document.getElementById('confirmBtn');
+  if (isDanger) {
+    icon.className = 'icon danger';
+    icon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+    btn.className = 'btn btn-danger';
+    btn.textContent = 'Confirm';
+  } else {
+    icon.className = 'icon warning';
+    icon.innerHTML = '<i class="fas fa-question-circle"></i>';
+    btn.className = 'btn btn-success';
+    btn.textContent = 'Confirm';
+  }
+  confirmCallback = callback;
+  document.getElementById('confirmOverlay').classList.remove('hidden');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.add('hidden');
+  confirmCallback = null;
+}
+
+function executeConfirm() {
+  if (confirmCallback) confirmCallback();
+  closeConfirm();
+}
+
+// ─── Modal ─────────────────────────────────────────────────────────────
+function openModal(title, bodyHtml, footerHtml) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalFooter').innerHTML = footerHtml || '';
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function closeModal() {
+  if (tourPierMapInstance) {
+    try { tourPierMapInstance.remove(); } catch(e) {}
+    tourPierMapInstance = null;
+    tourPierMarker = null;
+  }
+  document.getElementById('modalOverlay').classList.add('hidden');
+}
+
+// ─── Login ─────────────────────────────────────────────────────────────
+function showLoginScreen() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function hideLoginScreen() {
+  document.getElementById('loginScreen').classList.add('hidden');
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('loginError');
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div><span>Signing in...</span>';
+  errEl.classList.remove('show');
+
+  try {
+    const res = await api.post('/auth/login', { email, password });
+    if (!res.success) throw new Error(res.message || 'Login failed');
+    const user = res.data?.user || res.data;
+    const token = res.data?.token || res.token;
+    if (!token) throw new Error('No token received');
+    if (user.role !== 'admin' && user.role !== 'staff') throw new Error('Access denied. Admin or staff role required.');
+    api.setToken(token);
+    window.currentAdminUser = user;
+    updateSidebarUser(user);
+    document.querySelector('[data-page="staff"]')?.closest('a')?.style?.setProperty('display', user.role === 'admin' ? '' : 'none');
+    hideLoginScreen();
+    loadDashboard();
+  } catch (err) {
+    errEl.textContent = err.message || 'Login failed';
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Sign In</span>';
+  }
+}
+
+function handleLogout() {
+  showConfirm('Logout', 'Are you sure you want to logout?', () => {
+    api.clearToken();
+    showLoginScreen();
+    toast('Logged out successfully', 'info');
+  }, false);
+}
+
+function updateSidebarUser(user) {
+  if (!user) return;
+  window.currentAdminUser = user;
+  const name = user.name || user.first_name || 'Admin';
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('sidebarRole').textContent = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : user.role);
+  document.getElementById('sidebarAvatar').textContent = avatarLetter(name);
+  const staffLink = document.querySelector('[data-page="staff"]')?.closest('a');
+  if (staffLink) staffLink.style.display = user.role === 'admin' ? '' : 'none';
+  applyStaffModuleNav();
+}
+
+/** ซ่อนเมนูที่ Staff ไม่มีสิทธิ์ (data-require-module) — แอดมินเห็นทั้งหมด */
+function applyStaffModuleNav() {
+  const u = window.currentAdminUser;
+  document.querySelectorAll('[data-require-module]').forEach(el => {
+    const req = el.getAttribute('data-require-module');
+    if (!req) return;
+    if (!u || u.role === 'admin') {
+      el.style.display = '';
+      return;
+    }
+    if (u.role !== 'staff') {
+      el.style.display = 'none';
+      return;
+    }
+    const mods = u.modules || [];
+    const ok = mods.includes('*') || mods.includes(req);
+    el.style.display = ok ? '' : 'none';
+  });
+}
+
+// ─── Page Navigation ───────────────────────────────────────────────────
+function showPage(page, el) {
+  currentPage = page;
+  document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display = 'none');
+  const target = document.getElementById('page-' + page);
+  if (target) target.style.display = 'block';
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  const titles = { cms: 'ความเห็น / ศูนย์ช่วยเหลือ / ประกาศ', 'boat-types': 'ประเภทเรือ', promotions: 'โปรโมชั่น (หน้าแรก)' };
+  document.getElementById('pageTitle').textContent = titles[page] || (page.charAt(0).toUpperCase() + page.slice(1));
+  document.getElementById('sidebar').classList.remove('open');
+
+  switch (page) {
+    case 'dashboard': loadDashboard(); break;
+    case 'bookings': loadBookings(); break;
+    case 'tours': loadTours(); break;
+    case 'providers': loadProviders(); break;
+    case 'destinations': loadDestinations(); break;
+    case 'boat-types': loadBoatTypes(); break;
+    case 'boats': loadBoats(); break;
+    case 'reviews': loadReviews(); break;
+    case 'finance': loadFinance(); break;
+    case 'users': loadUsers(); break;
+    case 'staff': loadStaff(); break;
+    case 'settings': loadSettings(); break;
+    case 'cms': loadCMS(); break;
+    case 'promotions': loadPromotionsAdmin(); break;
+  }
+}
+
+function handleGlobalSearch() {
+  const q = document.getElementById('globalSearch').value.trim();
+  if (!q) return;
+  if (currentPage === 'bookings') {
+    document.getElementById('bookingSearch').value = q;
+    loadBookings();
+  } else if (currentPage === 'users') {
+    document.getElementById('userSearch').value = q;
+    loadUsers();
+  } else {
+    showPage('bookings', document.querySelector('[data-page=bookings]'));
+    setTimeout(() => { document.getElementById('bookingSearch').value = q; loadBookings(); }, 100);
+  }
+}
+
+// ─── Dashboard ─────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const res = await api.get('/admin/dashboard');
+    const d = res.data;
+
+    document.getElementById('dashboardStats').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon" style="background:#eff6ff;color:#3b82f6"><i class="fas fa-dollar-sign"></i></div>
+        </div>
+        <div class="stat-value">${formatCurrency(d.total_revenue)}</div>
+        <div class="stat-label">Total Revenue</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon" style="background:#f0fdf4;color:#22c55e"><i class="fas fa-calendar-check"></i></div>
+        </div>
+        <div class="stat-value">${Number(d.total_bookings || 0).toLocaleString()}</div>
+        <div class="stat-label">Total Bookings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon" style="background:#fef3c7;color:#f59e0b"><i class="fas fa-ship"></i></div>
+        </div>
+        <div class="stat-value">${d.active_tours || 0}</div>
+        <div class="stat-label">Active Tours</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header">
+          <div class="stat-icon" style="background:#fae8ff;color:#a855f7"><i class="fas fa-users"></i></div>
+        </div>
+        <div class="stat-value">${Number(d.total_users || 0).toLocaleString()}</div>
+        <div class="stat-label">Total Users</div>
+      </div>
+    `;
+
+    renderRevenueChart(d.monthly_revenue || []);
+    renderPieChart(d.booking_by_type || d.bookings_by_type || []);
+    renderRecentBookings(d.recent_bookings || []);
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+    toast('Failed to load dashboard: ' + err.message, 'error');
+  }
+}
+
+function renderRevenueChart(monthly) {
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  if (revenueChartInstance) revenueChartInstance.destroy();
+
+  const labels = monthly.map(m => m.month || m.label || '');
+  const values = monthly.map(m => Number(m.revenue || m.amount || m.value || 0));
+
+  revenueChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.length ? labels : ['No data'],
+      datasets: [{
+        label: 'Revenue (฿)',
+        data: values.length ? values : [0],
+        borderColor: '#0077b6',
+        backgroundColor: 'rgba(0,119,182,0.1)',
+        fill: true, tension: 0.4, borderWidth: 2,
+        pointBackgroundColor: '#0077b6', pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => '฿' + (v >= 1000 ? (v / 1000) + 'K' : v) } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderPieChart(byType) {
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  if (pieChartInstance) pieChartInstance.destroy();
+
+  const labels = byType.map(b => b.type || b.name || b.label || 'Other');
+  const values = byType.map(b => Number(b.count || b.value || b.total || 0));
+  const colors = ['#0077b6', '#00b4d8', '#48cae4', '#90e0ef', '#caf0f8', '#023e8a', '#0096c7'];
+
+  pieChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels.length ? labels : ['No data'],
+      datasets: [{
+        data: values.length ? values : [1],
+        backgroundColor: colors.slice(0, Math.max(labels.length, 1)),
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle' } } }
+    }
+  });
+}
+
+function renderRecentBookings(bookings) {
+  const tbody = document.getElementById('recentBookingsBody');
+  if (!bookings.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-calendar"></i><p>No recent bookings</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = bookings.slice(0, 5).map(b => {
+    const name = b.customer_name || b.user_name || b.customer || 'Guest';
+    return `<tr>
+      <td style="font-family:monospace;font-weight:600;color:var(--ocean-600)">${b.booking_number || b.id || '-'}</td>
+      <td><div class="user-cell"><div class="avatar" style="background:${avatarColor(name)}">${avatarLetter(name)}</div><div>${escHtml(name)}</div></div></td>
+      <td>${escHtml(b.tour_name || b.tour || '-')}</td>
+      <td>${formatDate(b.booking_date || b.date || b.created_at)}</td>
+      <td style="font-weight:600">${formatCurrencyFull(b.total_price || b.amount || b.total)}</td>
+      <td><span class="status ${statusClass(b.status)}">${statusLabel(b.status)}</span></td>
+      <td>
+        <button class="action-btn" title="View" onclick="viewBookingDetail(${b.id})"><i class="fas fa-eye"></i></button>
+        ${b.status === 'pending' ? `<button class="action-btn" title="Confirm" style="color:#22c55e" onclick="confirmBooking(${b.id})"><i class="fas fa-check"></i></button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Bookings ──────────────────────────────────────────────────────────
+let bookingsProviderFilter = '';
+
+async function loadBookings() {
+  const search = document.getElementById('bookingSearch')?.value?.trim() || '';
+  bookingsProviderFilter = document.getElementById('bookingProviderFilter')?.value || '';
+  const params = new URLSearchParams({ page: bookingsPage, limit: 50 });
+  if (bookingsFilter) params.set('status', bookingsFilter);
+  if (search) params.set('search', search);
+  if (bookingsProviderFilter) params.set('operator_id', bookingsProviderFilter);
+
+  const tbody = document.getElementById('bookingsBody');
+  tbody.innerHTML = '<tr><td colspan="9"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+
+  try {
+    const [res, provRes] = await Promise.all([
+      api.get('/admin/bookings?' + params.toString()),
+      api.get('/admin/providers')
+    ]);
+    const bookings = res.data?.bookings || res.data || [];
+    const pag = res.data?.pagination || {};
+    const total = pag.total ?? res.data?.total ?? bookings.length;
+    const pages = pag.total_pages ?? pag.pages ?? 1;
+
+    renderBookingFilters(bookings, total);
+    renderBookingProviderFilter(provRes);
+
+    if (!bookings.length) {
+      tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-calendar"></i><p>No bookings found</p></div></td></tr>';
+      document.getElementById('bookingsPagination').innerHTML = '';
+      return;
+    }
+
+    let lastProvider = '';
+    let html = '';
+    bookings.forEach(b => {
+      const provider = b.operator_name || b.provider_name || b.company_name || '-';
+      if (provider !== lastProvider) {
+        lastProvider = provider;
+        html += `<tr class="provider-group-header" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-left:4px solid var(--ocean-600)">
+          <td colspan="9" style="padding:12px 20px;font-weight:700;font-size:14px;color:var(--ocean-800)">
+            <i class="fas fa-building" style="margin-right:8px;color:var(--ocean-600)"></i>${escHtml(provider)}
+          </td>
+        </tr>`;
+      }
+      const name = b.customer_name || b.user_name || b.customer || 'Guest';
+      const passengers = b.passengers || b.num_passengers || b.adults || '-';
+      const tour = b.boat_name || b.tour_name || b.tour || '-';
+      html += `<tr>
+        <td style="font-family:monospace;font-weight:600;color:var(--ocean-600)">${escHtml(b.booking_ref || b.booking_number || 'BH-' + b.id)}</td>
+        <td><div class="user-cell"><div class="avatar" style="background:${avatarColor(name)}">${avatarLetter(name)}</div><div>${escHtml(name)}</div></div></td>
+        <td><span style="font-weight:600;color:var(--ocean-700)">${escHtml(provider)}</span></td>
+        <td>${escHtml(tour)}</td>
+        <td>${formatDate(b.booking_date || b.date || b.created_at)}</td>
+        <td>${typeof passengers === 'object' ? JSON.stringify(passengers) : passengers}</td>
+        <td style="font-weight:600">${formatCurrencyFull(b.total_amount || b.total_price || b.amount || b.total)}</td>
+        <td><span class="status ${statusClass(b.status)}">${statusLabel(b.status)}</span></td>
+        <td>
+          <button class="action-btn" title="View" onclick="viewBookingDetail(${b.id})"><i class="fas fa-eye"></i></button>
+          ${['pending','confirmed'].includes(b.status) ? `<button class="action-btn" title="Confirm" style="color:#22c55e" onclick="confirmBooking(${b.id})"><i class="fas fa-check"></i></button>` : ''}
+          ${['pending','confirmed'].includes(b.status) ? `<button class="action-btn" title="Cancel" style="color:#ef4444" onclick="cancelBooking(${b.id})"><i class="fas fa-times"></i></button>` : ''}
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+
+    renderPagination('bookingsPagination', bookingsPage, pages, (p) => { bookingsPage = p; loadBookings(); });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+function renderBookingProviderFilter(provRes) {
+  const sel = document.getElementById('bookingProviderFilter');
+  if (!sel) return;
+  const provs = provRes?.data?.providers || provRes?.data || [];
+  const list = Array.isArray(provs) ? provs : [];
+  sel.innerHTML = '<option value="">ทั้งหมด</option>' + list.map(p =>
+    `<option value="${p.id}" ${bookingsProviderFilter === String(p.id) ? 'selected' : ''}>${escHtml(p.company_name || p.name || 'Provider ' + p.id)}</option>`
+  ).join('');
+}
+
+function renderBookingFilters(bookings, total) {
+  const el = document.getElementById('bookingFilters');
+  const statuses = ['', 'confirmed', 'pending', 'completed', 'cancelled'];
+  const labels = ['All', 'Confirmed', 'Pending', 'Completed', 'Cancelled'];
+  el.innerHTML = statuses.map((s, i) => {
+    const isActive = bookingsFilter === s;
+    return `<button class="filter-tab ${isActive ? 'active' : ''}" onclick="bookingsFilter='${s}';bookingsPage=1;loadBookings()">${labels[i]}</button>`;
+  }).join('');
+}
+
+async function viewBookingDetail(id) {
+  try {
+    const res = await api.get('/admin/bookings?search=' + id);
+    const bookings = res.data?.bookings || res.data || [];
+    const b = bookings.find(x => x.id == id) || bookings[0];
+    if (!b) { toast('Booking not found', 'error'); return; }
+
+    const name = b.customer_name || b.user_name || b.customer || 'Guest';
+    const provider = b.operator_name || b.provider_name || b.company_name || '-';
+    const tour = b.boat_name || b.tour_name || b.tour || '-';
+    openModal('Booking Detail: ' + (b.booking_ref || b.booking_number || 'BH-' + b.id), `
+      <div class="detail-row"><div class="label">Booking ID</div><div class="value" style="font-family:monospace;color:var(--ocean-600)">${escHtml(b.booking_ref || b.booking_number || 'BH-' + b.id)}</div></div>
+      <div class="detail-row"><div class="label">Customer</div><div class="value">${escHtml(name)}</div></div>
+      <div class="detail-row"><div class="label">Email</div><div class="value">${escHtml(b.customer_email || b.email || '-')}</div></div>
+      <div class="detail-row"><div class="label">ผู้ให้บริการ</div><div class="value" style="font-weight:600;color:var(--ocean-700)">${escHtml(provider)}</div></div>
+      <div class="detail-row"><div class="label">Tour / เรือ</div><div class="value">${escHtml(tour)}</div></div>
+      <div class="detail-row"><div class="label">Date</div><div class="value">${formatDate(b.booking_date || b.date || b.created_at)}</div></div>
+      <div class="detail-row"><div class="label">Passengers</div><div class="value">${b.passengers || b.num_passengers || b.adults || '-'}</div></div>
+      <div class="detail-row"><div class="label">Amount</div><div class="value" style="font-weight:700;font-size:16px">${formatCurrencyFull(b.total_amount || b.total_price || b.amount || b.total)}</div></div>
+      <div class="detail-row"><div class="label">Status</div><div class="value"><span class="status ${statusClass(b.status)}">${statusLabel(b.status)}</span></div></div>
+      <div class="detail-row"><div class="label">Created</div><div class="value">${formatDate(b.created_at)}</div></div>
+      ${b.special_requests ? `<div class="detail-row"><div class="label">Requests</div><div class="value">${escHtml(b.special_requests)}</div></div>` : ''}
+    `, `<button class="btn btn-outline" onclick="closeModal()">Close</button>`);
+  } catch (err) {
+    toast('Error loading booking: ' + err.message, 'error');
+  }
+}
+
+async function confirmBooking(id) {
+  showConfirm('Confirm Booking', 'Are you sure you want to confirm this booking?', async () => {
+    try {
+      await api.put('/admin/bookings/' + id + '/status', { status: 'confirmed' });
+      toast('Booking confirmed successfully');
+      if (currentPage === 'bookings') loadBookings();
+      else loadDashboard();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  }, false);
+}
+
+async function cancelBooking(id) {
+  showConfirm('Cancel Booking', 'Are you sure you want to cancel this booking? This cannot be undone.', async () => {
+    try {
+      await api.put('/admin/bookings/' + id + '/status', { status: 'cancelled' });
+      toast('Booking cancelled');
+      if (currentPage === 'bookings') loadBookings();
+      else loadDashboard();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  });
+}
+
+function exportBookings() {
+  toast('Preparing export...', 'info');
+  const params = new URLSearchParams({ limit: 9999 });
+  if (bookingsFilter) params.set('status', bookingsFilter);
+  if (bookingsProviderFilter) params.set('operator_id', bookingsProviderFilter);
+  api.get('/admin/bookings?' + params.toString()).then(res => {
+    const bookings = res.data?.bookings || res.data || [];
+    const rows = [['ID', 'Customer', 'ผู้ให้บริการ', 'Tour', 'Date', 'Passengers', 'Amount', 'Status']];
+    bookings.forEach(b => {
+      rows.push([
+        b.booking_ref || b.booking_number || b.id,
+        b.customer_name || b.user_name || '',
+        b.operator_name || b.provider_name || '',
+        b.boat_name || b.tour_name || b.tour || '',
+        b.booking_date || b.date || '',
+        b.passengers || '',
+        b.total_amount || b.total_price || b.amount || '',
+        b.status || ''
+      ]);
+    });
+    downloadCSV(rows, 'bookings_export.csv');
+    toast('Export downloaded');
+  }).catch(err => toast('Export failed: ' + err.message, 'error'));
+}
+
+// ─── Tours ─────────────────────────────────────────────────────────────
+let toursFilter = '';
+let toursProviderFilter = '';
+
+async function loadTours() {
+  const search = document.getElementById('tourSearch')?.value?.trim() || '';
+  toursProviderFilter = document.getElementById('tourProviderFilter')?.value || '';
+  const tbody = document.getElementById('toursBody');
+  tbody.innerHTML = '<tr><td colspan="8"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+
+  try {
+    const res = await api.get('/admin/tours?limit=500');
+    toursData = res.data?.tours || res.data || [];
+
+    let filtered = toursData;
+    if (toursFilter) filtered = filtered.filter(t => (t.status || 'active').toLowerCase() === toursFilter);
+    if (toursProviderFilter) filtered = filtered.filter(t => String(t.operator_id || '') === toursProviderFilter);
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(t =>
+        (t.name || '').toLowerCase().includes(q) ||
+        (t.title || '').toLowerCase().includes(q) ||
+        (t.operator_name || '').toLowerCase().includes(q)
+      );
+    }
+
+    // เรียงตามผู้ให้บริการ แล้วตามชื่อทัวร์
+    filtered.sort((a, b) => {
+      const pa = (a.operator_name || '').toLowerCase();
+      const pb = (b.operator_name || '').toLowerCase();
+      if (pa !== pb) return pa.localeCompare(pb);
+      return ((a.name || a.title || '').toLowerCase()).localeCompare((b.name || b.title || '').toLowerCase());
+    });
+
+    renderTourFilters();
+    renderTourProviderFilter();
+
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-ship"></i><p>No tours found</p></div></td></tr>';
+      return;
+    }
+
+    let lastProvider = '';
+    let html = '';
+    filtered.forEach(t => {
+      const provider = t.operator_name || t.provider_name || t.provider || '-';
+      if (provider !== lastProvider) {
+        lastProvider = provider;
+        html += `<tr class="provider-group-header" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-left:4px solid var(--ocean-600)">
+          <td colspan="8" style="padding:12px 20px;font-weight:700;font-size:14px;color:var(--ocean-800)">
+            <i class="fas fa-building" style="margin-right:8px;color:var(--ocean-600)"></i>${escHtml(provider)}
+          </td>
+        </tr>`;
+      }
+      const name = t.name || t.title || '-';
+      const location = t.river || t.location || t.province || t.departure_pier || '';
+      html += `<tr>
+        <td><strong>${escHtml(name)}</strong>${location ? `<br><span style="font-size:11px;color:var(--muted)">${escHtml(location)}</span>` : ''}</td>
+        <td>${escHtml(provider)}</td>
+        <td>${escHtml(t.duration || '-')}</td>
+        <td style="font-weight:600">${formatCurrencyFull(t.price || t.adult_price || 0)}</td>
+        <td>${t.booking_count || t.bookings_count || t.total_bookings || 0}</td>
+        <td><span style="color:#f59e0b"><i class="fas fa-star"></i></span> ${Number(t.rating || t.avg_rating || 0).toFixed(1)}</td>
+        <td><span class="status ${statusClass(t.status || 'active')}">${statusLabel(t.status || 'active')}</span></td>
+        <td>
+          <button class="action-btn" title="Edit" onclick="editTour(${t.id})"><i class="fas fa-edit"></i></button>
+          <button class="action-btn" title="Delete" style="color:#ef4444" onclick="deleteTour(${t.id}, '${escAttr(name)}')"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+function renderTourProviderFilter() {
+  const sel = document.getElementById('tourProviderFilter');
+  if (!sel) return;
+  const providers = [];
+  const seen = new Set();
+  toursData.forEach(t => {
+    const id = t.operator_id || '';
+    const name = t.operator_name || t.provider_name || t.provider || '-';
+    if (name && name !== '-' && !seen.has(id + '|' + name)) {
+      seen.add(id + '|' + name);
+      providers.push({ id, name });
+    }
+  });
+  providers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  sel.innerHTML = '<option value="">ทั้งหมด</option>' + providers.map(p =>
+    `<option value="${p.id}" ${toursProviderFilter === String(p.id) ? 'selected' : ''}>${escHtml(p.name)}</option>`
+  ).join('');
+}
+
+function renderTourFilters() {
+  const el = document.getElementById('tourFilters');
+  const statuses = ['', 'active', 'inactive', 'draft'];
+  const labels = ['All', 'Active', 'Inactive', 'Draft'];
+  el.innerHTML = statuses.map((s, i) => {
+    const count = s ? toursData.filter(t => (t.status || 'active').toLowerCase() === s).length : toursData.length;
+    return `<button class="filter-tab ${toursFilter === s ? 'active' : ''}" onclick="toursFilter='${s}';loadTours()">${labels[i]} (${count})</button>`;
+  }).join('');
+}
+
+async function openTourModal(tour = null) {
+  const isEdit = !!tour;
+  const title = isEdit ? 'Edit Tour' : 'Add New Tour';
+
+  let destOpts = '<option value="">— เลือกจุดหมาย —</option>';
+  let provOpts = '<option value="">— เลือกผู้ให้บริการ —</option>';
+  try {
+    const [destRes, provRes] = await Promise.all([
+      api.get('/admin/destinations'),
+      api.get('/admin/providers')
+    ]);
+    const dests = Array.isArray(destRes?.data) ? destRes.data : (destRes?.data?.destinations || []);
+    const provs = Array.isArray(provRes?.data) ? provRes.data : (provRes?.data?.providers || []);
+    dests.forEach(d => {
+      const n = d.name_th || d.name || d.province || 'Destination ' + d.id;
+      destOpts += `<option value="${d.id}" ${(tour?.destination_id == d.id) ? 'selected' : ''}>${escHtml(n)}</option>`;
+    });
+    provs.forEach(p => {
+      const n = p.company_name || p.name || 'Provider ' + p.id;
+      provOpts += `<option value="${p.id}" ${(tour?.operator_id == p.id) ? 'selected' : ''}>${escHtml(n)}</option>`;
+    });
+  } catch (e) {
+    console.warn('Could not load destinations/providers:', e);
+  }
+  const emptyHint = (!isEdit && (destOpts === '<option value="">— เลือกจุดหมาย —</option>' || provOpts === '<option value="">— เลือกผู้ให้บริการ —</option>'))
+    ? '<p style="font-size:12px;color:#f59e0b;margin-bottom:12px"><i class="fas fa-info-circle"></i> กรุณารัน setup.php ก่อนเพื่อสร้าง Destinations และ Operators</p>' : '';
+
+  const body = `
+    ${emptyHint}
+    <form id="tourForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Destination / จุดหมาย</label>
+          <select class="form-input form-select" id="tourDestination">${destOpts}</select>
+        </div>
+        <div class="form-group">
+          <label>Provider / ผู้ให้บริการ</label>
+          <select class="form-input form-select" id="tourProvider">${provOpts}</select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tour Name</label>
+        <input type="text" class="form-input" id="tourName" value="${escAttr(tour?.name || tour?.title || '')}" required>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea class="form-input form-textarea" id="tourDesc" rows="3">${escHtml(tour?.description || '')}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Duration (e.g. 8 ชม. or 120)</label>
+          <input type="text" class="form-input" id="tourDuration" value="${escAttr(tour?.duration || '')}" placeholder="e.g. 8 ชม. หรือ 480 (นาที)">
+        </div>
+        <div class="form-group">
+          <label>Price (฿)</label>
+          <input type="number" class="form-input" id="tourPrice" value="${tour?.price || tour?.adult_price || ''}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Max Passengers</label>
+          <input type="number" class="form-input" id="tourMaxPass" value="${tour?.max_passengers || tour?.capacity || ''}" placeholder="20">
+        </div>
+        <div class="form-group">
+          <label>Boat Type</label>
+          <select class="form-input form-select" id="tourBoatType">
+            <option value="">Select type</option>
+            <option value="speedboat" ${(tour?.boat_type || '') === 'speedboat' ? 'selected' : ''}>Speedboat</option>
+            <option value="longtail" ${(tour?.boat_type || '') === 'longtail' ? 'selected' : ''}>Longtail</option>
+            <option value="catamaran" ${(tour?.boat_type || '') === 'catamaran' ? 'selected' : ''}>Catamaran</option>
+            <option value="yacht" ${(tour?.boat_type || '') === 'yacht' ? 'selected' : ''}>Yacht</option>
+            <option value="ferry" ${(tour?.boat_type || '') === 'ferry' ? 'selected' : ''}>Ferry</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Departure Pier / ชื่อท่าเรือ</label>
+          <input type="text" class="form-input" id="tourPier" value="${escAttr(tour?.departure_pier || tour?.pier || tour?.pier_name || '')}" placeholder="เช่น ท่าเรือวัดกษัตราธิราช">
+        </div>
+        <div class="form-group">
+          <label>Location / Province</label>
+          <input type="text" class="form-input" id="tourLocation" value="${escAttr(tour?.location || tour?.province || '')}" placeholder="เช่น พระนครศรีอยุธยา">
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--ocean-600)"></i>ตำแหน่งท่าเรือบนแผนที่</label>
+        <small style="display:block;color:var(--muted);font-size:11px;margin-bottom:8px">คลิกบนแผนที่เพื่อระบุตำแหน่งท่าเรือ (หรือลาก marker)</small>
+        <div id="tourPierMap" style="height:280px;border-radius:12px;border:1px solid var(--border);background:#f1f5f9"></div>
+        <input type="hidden" id="tourPierLat" value="${tour?.pier_latitude || ''}">
+        <input type="hidden" id="tourPierLng" value="${tour?.pier_longitude || ''}">
+        <div style="margin-top:8px;font-size:12px;color:var(--muted)">
+          <span id="tourPierCoords">${(tour?.pier_latitude && tour?.pier_longitude) ? (tour.pier_latitude + ', ' + tour.pier_longitude) : 'ยังไม่ได้ระบุ — คลิกบนแผนที่'}</span>
+        </div>
+      </div>
+      ${isEdit ? `
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input form-select" id="tourStatus">
+          <option value="active" ${(tour?.status || 'active') === 'active' ? 'selected' : ''}>Active</option>
+          <option value="inactive" ${(tour?.status || '') === 'inactive' ? 'selected' : ''}>Inactive</option>
+          <option value="maintenance" ${(tour?.status || '') === 'maintenance' ? 'selected' : ''}>Maintenance</option>
+        </select>
+      </div>
+      ` : ''}
+      ${isEdit && tour?.id ? `
+      <div class="form-group" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <label style="font-weight:700;color:var(--ocean-600)"><i class="fas fa-file-alt" style="margin-right:6px"></i>เอกสารเรือ (ต่อลำ)</label>
+        <small style="display:block;color:var(--muted);font-size:11px;margin-bottom:12px">รองรับ JPG, PNG, PDF (สูงสุด 10MB) — อัปโหลดที่แต่ละ Tour เมื่อพาร์ทเนอร์มีหลายลำ</small>
+        <div style="display:grid;gap:12px">
+          <div class="doc-upload-row">
+            <label style="flex:0 0 140px;font-size:13px">เอกสารอนุญาตใช้เรือ</label>
+            <div style="flex:1">
+              <input type="file" id="tourDocBoatPermit" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadTourDoc(${tour.id},'boat_permit',this)">
+              <button type="button" class="btn btn-outline" style="font-size:12px;padding:8px 12px" onclick="document.getElementById('tourDocBoatPermit').click()"><i class="fas fa-upload"></i> อัปโหลด</button>
+              <span id="tourDocBoatPermitStatus" style="margin-left:8px;font-size:12px;color:var(--muted)">${tour?.doc_boat_permit ? '<a href="' + APP_PATH_PREFIX + '/' + (tour.doc_boat_permit || '') + '" target="_blank"><i class="fas fa-file-pdf"></i> ดูเอกสาร</a>' : 'ยังไม่มี'}</span>
+            </div>
+          </div>
+          <div class="doc-upload-row">
+            <label style="flex:0 0 140px;font-size:13px">เอกสารประกันภัย</label>
+            <div style="flex:1">
+              <input type="file" id="tourDocInsurance" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadTourDoc(${tour.id},'insurance',this)">
+              <button type="button" class="btn btn-outline" style="font-size:12px;padding:8px 12px" onclick="document.getElementById('tourDocInsurance').click()"><i class="fas fa-upload"></i> อัปโหลด</button>
+              <span id="tourDocInsuranceStatus" style="margin-left:8px;font-size:12px;color:var(--muted)">${tour?.doc_insurance ? '<a href="' + APP_PATH_PREFIX + '/' + (tour.doc_insurance || '') + '" target="_blank"><i class="fas fa-file-pdf"></i> ดูเอกสาร</a>' : 'ยังไม่มี'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+    </form>
+  `;
+  const footer = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="submitTour(${isEdit ? tour.id : 'null'})">${isEdit ? 'Update Tour' : 'Create Tour'}</button>
+  `;
+  openModal(title, body, footer);
+  setTimeout(() => initTourPierMap(tour), 50);
+}
+
+async function submitTour(id) {
+  const destEl = document.getElementById('tourDestination');
+  const provEl = document.getElementById('tourProvider');
+  const data = {
+    name: document.getElementById('tourName').value.trim(),
+    description: document.getElementById('tourDesc').value.trim(),
+    duration: document.getElementById('tourDuration').value.trim(),
+    price: Number(document.getElementById('tourPrice').value) || 0,
+    max_passengers: Number(document.getElementById('tourMaxPass').value) || 20,
+    boat_type: document.getElementById('tourBoatType').value || 'longtail',
+    departure_pier: document.getElementById('tourPier').value.trim(),
+    location: document.getElementById('tourLocation').value.trim(),
+  };
+  const pierLat = document.getElementById('tourPierLat')?.value;
+  const pierLng = document.getElementById('tourPierLng')?.value;
+  if (pierLat && pierLng) {
+    data.pier_latitude = parseFloat(pierLat);
+    data.pier_longitude = parseFloat(pierLng);
+  }
+  if (destEl) data.destination_id = destEl.value ? parseInt(destEl.value, 10) : null;
+  if (provEl) data.operator_id = provEl.value ? parseInt(provEl.value, 10) : null;
+  const statusEl = document.getElementById('tourStatus');
+  if (statusEl) data.status = statusEl.value;
+
+  if (!data.name) { toast('Please enter tour name', 'error'); return; }
+  if (!data.price) { toast('Please enter a price', 'error'); return; }
+
+  try {
+    if (id) {
+      await api.put('/admin/tours/' + id, data);
+      toast('Tour updated successfully');
+    } else {
+      await api.post('/admin/tours', data);
+      toast('Tour created successfully');
+    }
+    closeModal();
+    loadTours();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+let tourPierMapInstance = null;
+let tourPierMarker = null;
+
+function initTourPierMap(tour) {
+  const container = document.getElementById('tourPierMap');
+  const latEl = document.getElementById('tourPierLat');
+  const lngEl = document.getElementById('tourPierLng');
+  const coordsSpan = document.getElementById('tourPierCoords');
+  if (!container || !latEl || !lngEl) return;
+  if (tourPierMapInstance) {
+    tourPierMapInstance.remove();
+    tourPierMapInstance = null;
+    tourPierMarker = null;
+  }
+  const hasCoords = latEl.value && lngEl.value;
+  const lat = parseFloat(latEl.value) || 14.35;
+  const lng = parseFloat(lngEl.value) || 100.55;
+  const map = L.map('tourPierMap').setView([lat, lng], hasCoords ? 15 : 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+  const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+  if (!hasCoords) {
+    marker.setLatLng([14.35, 100.55]);
+    latEl.value = ''; lngEl.value = '';
+    if (coordsSpan) coordsSpan.textContent = 'ยังไม่ได้ระบุ — คลิกบนแผนที่';
+  }
+  function updateCoords(latlng) {
+    const ll = latlng || marker.getLatLng();
+    latEl.value = ll.lat.toFixed(6);
+    lngEl.value = ll.lng.toFixed(6);
+    if (coordsSpan) coordsSpan.textContent = ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5);
+  }
+  map.on('click', function(e) {
+    marker.setLatLng(e.latlng);
+    updateCoords(e.latlng);
+  });
+  marker.on('dragend', function() { updateCoords(); });
+  if (hasCoords) updateCoords();
+  tourPierMapInstance = map;
+  tourPierMarker = marker;
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
+function editTour(id) {
+  const tour = toursData.find(t => t.id == id);
+  if (tour) openTourModal(tour);
+  else toast('Tour not found', 'error');
+}
+
+function deleteTour(id, name) {
+  showConfirm('Delete Tour', `Are you sure you want to delete "${name}"? This cannot be undone.`, async () => {
+    try {
+      await api.del('/admin/tours/' + id);
+      toast('Tour deleted');
+      loadTours();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  });
+}
+
+// ─── Providers ─────────────────────────────────────────────────────────
+let providersFilter = '';
+
+async function loadProviders() {
+  const tbody = document.getElementById('providersBody');
+  tbody.innerHTML = '<tr><td colspan="7"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+
+  try {
+    const res = await api.get('/admin/providers');
+    providersData = res.data?.providers || res.data || [];
+    if (!Array.isArray(providersData)) providersData = [];
+
+    let filtered = providersData;
+    if (providersFilter) filtered = filtered.filter(p => (p.status || '').toLowerCase() === providersFilter);
+
+    renderProviderFilters();
+
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-building"></i><p>No providers found</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(p => {
+      const name = p.company_name || p.name || '-';
+      const isPending = (p.status || '').toLowerCase() === 'pending';
+      const isActive = ['active', 'approved'].includes((p.status || '').toLowerCase());
+      return `<tr>
+        <td><strong>${escHtml(name)}</strong></td>
+        <td>${escHtml(p.contact_phone || p.phone || p.email || '-')}</td>
+        <td>${p.boats_count || p.boat_count || p.boats || 0}</td>
+        <td>${p.tours_count || p.boat_count || p.tours || 0}</td>
+        <td style="font-weight:600">${formatCurrency(p.revenue || p.total_revenue || 0)}</td>
+        <td><span class="status ${statusClass(p.status)}">${statusLabel(p.status)}</span></td>
+        <td>
+          ${isPending ? `<button class="action-btn" title="Approve" style="color:#22c55e" onclick="updateProviderStatus(${p.id},'approved')"><i class="fas fa-check"></i></button>` : ''}
+          ${isPending ? `<button class="action-btn" title="Reject" style="color:#ef4444" onclick="updateProviderStatus(${p.id},'suspended')"><i class="fas fa-times"></i></button>` : ''}
+          ${isActive ? `<button class="action-btn" title="Suspend" style="color:#ef4444" onclick="suspendProvider(${p.id},'${escAttr(name)}')"><i class="fas fa-ban"></i></button>` : ''}
+          <button class="action-btn" title="Edit" style="color:#3b82f6" onclick="editProvider(${p.id})"><i class="fas fa-edit"></i></button>
+          <button class="action-btn" title="Delete" style="color:#ef4444" onclick="deleteProvider(${p.id},'${escAttr(name)}')"><i class="fas fa-trash-alt"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    const pendingCount = providersData.filter(p => (p.status || '').toLowerCase() === 'pending').length;
+    const badge = document.getElementById('badgeProviders');
+    badge.textContent = pendingCount || '';
+    badge.style.display = pendingCount ? 'inline' : 'none';
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+function renderProviderFilters() {
+  const el = document.getElementById('providerFilters');
+  const statuses = ['', 'active', 'approved', 'pending', 'suspended'];
+  const labels = ['All', 'Active', 'Approved', 'Pending', 'Suspended'];
+  el.innerHTML = statuses.map((s, i) => {
+    const count = s ? providersData.filter(p => (p.status || '').toLowerCase() === s).length : providersData.length;
+    if (s && count === 0) return '';
+    return `<button class="filter-tab ${providersFilter === s ? 'active' : ''}" onclick="providersFilter='${s}';loadProviders()">${labels[i]} (${count})</button>`;
+  }).join('');
+}
+
+async function updateProviderStatus(id, status) {
+  const label = status === 'approved' ? 'approve' : 'suspend';
+  showConfirm(`${statusLabel(status)} Provider`, `Are you sure you want to ${label} this provider?`, async () => {
+    try {
+      await api.put('/admin/providers/' + id + '/status', { status });
+      toast(`Provider ${label}d successfully`);
+      loadProviders();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  }, status === 'suspended');
+}
+
+function suspendProvider(id, name) {
+  showConfirm('Suspend Provider', `Are you sure you want to suspend "${name}"?`, async () => {
+    try {
+      await api.put('/admin/providers/' + id + '/status', { status: 'suspended' });
+      toast('Provider suspended');
+      loadProviders();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  });
+}
+
+let editingProviderId = null;
+
+async function editProvider(id) {
+  try {
+    const res = await api.get('/admin/providers/' + id);
+    const p = res.data;
+    editingProviderId = id;
+    openProviderModal(p);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+function deleteProvider(id, name) {
+  showConfirm('Delete Provider', `Are you sure you want to delete "${name}"? This will remove the provider and cannot be undone.`, async () => {
+    try {
+      await api.del('/admin/providers/' + id);
+      toast('Provider deleted');
+      loadProviders();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  }, true);
+}
+
+async function uploadProviderDoc(operatorId, docType, input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const labelMap = { boat_license: 'BoatLicense', other: 'Other' };
+  const statusSpan = document.getElementById('provDoc' + labelMap[docType] + 'Status');
+  if (statusSpan) statusSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังอัปโหลด...';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('doc_type', docType);
+    const res = await api.uploadFile('/admin/providers/' + operatorId + '/upload-doc', fd);
+    if (statusSpan) {
+      const path = res.data?.path || '';
+      statusSpan.innerHTML = docType === 'other'
+        ? (statusSpan.innerHTML.includes('ดูเอกสาร') ? statusSpan.innerHTML + ' · ' : '') + '<a href="' + APP_PATH_PREFIX + '/' + path + '" target="_blank"><i class="fas fa-file-pdf"></i> ดูเอกสารล่าสุด</a>'
+        : '<a href="' + APP_PATH_PREFIX + '/' + path + '" target="_blank"><i class="fas fa-file-pdf"></i> ดูเอกสาร</a>';
+    }
+    toast('อัปโหลดสำเร็จ');
+  } catch (err) {
+    if (statusSpan) statusSpan.innerHTML = '<span style="color:#ef4444">' + escHtml(err.message) + '</span>';
+    toast('Error: ' + err.message, 'error');
+  }
+  input.value = '';
+}
+
+async function uploadTourDoc(boatId, docType, input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const labelMap = { boat_permit: 'BoatPermit', insurance: 'Insurance' };
+  const statusSpan = document.getElementById('tourDoc' + labelMap[docType] + 'Status');
+  if (statusSpan) statusSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังอัปโหลด...';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('doc_type', docType);
+    const res = await api.uploadFile('/admin/tours/' + boatId + '/upload-doc', fd);
+    if (statusSpan) {
+      const path = res.data?.path || '';
+      statusSpan.innerHTML = '<a href="' + APP_PATH_PREFIX + '/' + path + '" target="_blank"><i class="fas fa-file-pdf"></i> ดูเอกสาร</a>';
+    }
+    toast('อัปโหลดสำเร็จ');
+  } catch (err) {
+    if (statusSpan) statusSpan.innerHTML = '<span style="color:#ef4444">' + escHtml(err.message) + '</span>';
+    toast('Error: ' + err.message, 'error');
+  }
+  input.value = '';
+}
+
+// ─── Boat Types ────────────────────────────────────────────────────────
+let editingBoatTypeId = null;
+
+async function loadBoatTypes() {
+  const tbody = document.getElementById('boatTypesBody');
+  tbody.innerHTML = '<tr><td colspan="6"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+  try {
+    const res = await api.get('/admin/boat-types');
+    const list = res.data || [];
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-anchor"></i><p>ยังไม่มีประเภทเรือ</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(t => `
+      <tr>
+        <td><code>${escHtml(t.slug || '-')}</code></td>
+        <td>${escHtml(t.name_th || '-')}</td>
+        <td>${escHtml(t.name_en || '-')}</td>
+        <td><span class="status ${t.is_active ? 'status-active' : 'status-inactive'}">${t.is_active ? 'เปิด' : 'ปิด'}</span></td>
+        <td>${t.sort_order ?? 0}</td>
+        <td>
+          <button class="action-btn" title="Edit" style="color:#3b82f6" onclick="editBoatType(${t.id})"><i class="fas fa-edit"></i></button>
+          <button class="action-btn" title="ปิดใช้งาน" style="color:#ef4444" onclick="deactivateBoatType(${t.id},'${escAttr(t.name_th||'')}')"><i class="fas fa-ban"></i></button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+async function editBoatType(id) {
+  try {
+    const res = await api.get('/admin/boat-types');
+    const list = res.data || [];
+    const t = list.find(x => x.id == id);
+    if (t) { editingBoatTypeId = id; openBoatTypeModal(t); }
+    else toast('ไม่พบประเภทเรือ', 'error');
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+function deactivateBoatType(id, name) {
+  showConfirm('ปิดใช้งานประเภทเรือ', `ปิดการใช้งาน "${name}"? (เรือที่ใช้ประเภทนี้จะยังแสดงได้)`, async () => {
+    try {
+      await api.del('/admin/boat-types/' + id);
+      toast('ปิดใช้งานแล้ว');
+      loadBoatTypes();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  }, true);
+}
+
+function openBoatTypeModal(bt) {
+  const isEdit = !!bt;
+  editingBoatTypeId = isEdit ? bt.id : null;
+  const body = `
+    <form id="boatTypeForm">
+      <div class="form-group">
+        <label>Slug (ใช้ในระบบ)</label>
+        <input type="text" class="form-input" id="btSlug" placeholder="e.g. longtail, speedboat" value="${escAttr(bt?.slug || '')}" ${isEdit ? 'readonly' : ''}>
+      </div>
+      <div class="form-group">
+        <label>ชื่อไทย</label>
+        <input type="text" class="form-input" id="btNameTh" required placeholder="เช่น เรือหางยาว" value="${escAttr(bt?.name_th || '')}">
+      </div>
+      <div class="form-group">
+        <label>ชื่ออังกฤษ</label>
+        <input type="text" class="form-input" id="btNameEn" required placeholder="e.g. Longtail" value="${escAttr(bt?.name_en || '')}">
+      </div>
+      <div class="form-group">
+        <label>สถานะ</label>
+        <select class="form-input form-select" id="btActive">
+          <option value="1" ${(bt?.is_active !== 0) ? 'selected' : ''}>เปิดใช้งาน</option>
+          <option value="0" ${(bt?.is_active === 0) ? 'selected' : ''}>ปิดใช้งาน</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>ลำดับ</label>
+        <input type="number" class="form-input" id="btSortOrder" placeholder="0" value="${bt?.sort_order ?? 0}">
+      </div>
+    </form>
+  `;
+  const footer = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="submitBoatType()"><i class="fas fa-${isEdit ? 'save' : 'plus'}"></i> ${isEdit ? 'Save' : 'Create'}</button>
+  `;
+  openModal(isEdit ? 'แก้ไขประเภทเรือ' : 'เพิ่มประเภทเรือ', body, footer);
+}
+
+async function submitBoatType() {
+  const slug = document.getElementById('btSlug').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  const name_th = document.getElementById('btNameTh').value.trim();
+  const name_en = document.getElementById('btNameEn').value.trim();
+  const is_active = parseInt(document.getElementById('btActive').value, 10);
+  const sort_order = parseInt(document.getElementById('btSortOrder').value, 10) || 0;
+  if (!name_th || !name_en) { toast('กรุณากรอกชื่อไทยและอังกฤษ', 'error'); return; }
+  if (!editingBoatTypeId && !slug) { toast('กรุณากรอก Slug', 'error'); return; }
+  try {
+    if (editingBoatTypeId) {
+      await api.put('/admin/boat-types/' + editingBoatTypeId, { slug: slug || undefined, name_th, name_en, is_active, sort_order });
+      toast('อัปเดตแล้ว');
+    } else {
+      await api.post('/admin/boat-types', { slug, name_th, name_en, is_active, sort_order });
+      toast('เพิ่มประเภทเรือแล้ว');
+    }
+    closeModal();
+    editingBoatTypeId = null;
+    loadBoatTypes();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+// ─── Destinations ──────────────────────────────────────────────────────
+let editingDestinationId = null;
+
+async function loadDestinations() {
+  const tbody = document.getElementById('destinationsBody');
+  tbody.innerHTML = '<tr><td colspan="6"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+  try {
+    const res = await api.get('/admin/destinations');
+    const list = res.data?.destinations || res.data || [];
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-map-marker-alt"></i><p>No destinations found</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(d => `
+      <tr>
+        <td><strong>${escHtml(d.name || '-')}</strong></td>
+        <td>${escHtml(d.name_th || '-')}</td>
+        <td><code>${escHtml(d.slug || '-')}</code></td>
+        <td>${escHtml(d.province || '-')}</td>
+        <td><span class="status ${statusClass(d.status)}">${statusLabel(d.status)}</span></td>
+        <td>
+          <button class="action-btn" title="Edit" style="color:#3b82f6" onclick="editDestination(${d.id})"><i class="fas fa-edit"></i></button>
+          <button class="action-btn" title="Delete" style="color:#ef4444" onclick="deleteDestination(${d.id},'${escAttr(d.name || '')}')"><i class="fas fa-trash-alt"></i></button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+async function editDestination(id) {
+  try {
+    const res = await api.get('/admin/destinations/' + id);
+    editingDestinationId = id;
+    openDestinationModal(res.data);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+function deleteDestination(id, name) {
+  showConfirm('Delete Destination', `Are you sure you want to delete "${name}"?`, async () => {
+    try {
+      await api.del('/admin/destinations/' + id);
+      toast('Destination deleted');
+      loadDestinations();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  }, true);
+}
+
+function openDestinationModal(dest) {
+  const isEdit = !!dest;
+  editingDestinationId = isEdit ? dest.id : null;
+  const body = `
+    <form id="destForm">
+      <div class="form-group">
+        <label>Name (EN)</label>
+        <input type="text" class="form-input" id="destName" required placeholder="e.g. Ayutthaya" value="${escAttr(dest?.name || '')}">
+      </div>
+      <div class="form-group">
+        <label>Name (TH)</label>
+        <input type="text" class="form-input" id="destNameTh" placeholder="e.g. พระนครศรีอยุธยา" value="${escAttr(dest?.name_th || '')}">
+      </div>
+      <div class="form-group">
+        <label>Slug</label>
+        <input type="text" class="form-input" id="destSlug" placeholder="e.g. ayutthaya (auto from name if empty)" value="${escAttr(dest?.slug || '')}">
+      </div>
+      <div class="form-group">
+        <label>Province</label>
+        <input type="text" class="form-input" id="destProvince" placeholder="e.g. Phra Nakhon Si Ayutthaya" value="${escAttr(dest?.province || '')}">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input form-select" id="destStatus">
+          <option value="active" ${(dest?.status || '').toString().toLowerCase() === 'active' ? 'selected' : ''}>Active</option>
+          <option value="coming_soon" ${(dest?.status || '').toString().toLowerCase() === 'coming_soon' ? 'selected' : ''}>Coming Soon</option>
+          <option value="inactive" ${(dest?.status || '').toString().toLowerCase() === 'inactive' ? 'selected' : ''}>Inactive</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Sort Order</label>
+        <input type="number" class="form-input" id="destSortOrder" placeholder="0" value="${dest?.sort_order ?? 0}">
+      </div>
+    </form>
+  `;
+  const footer = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="submitDestination()"><i class="fas fa-${isEdit ? 'save' : 'plus'}"></i> ${isEdit ? 'Save' : 'Create'}</button>
+  `;
+  openModal(isEdit ? 'Edit Destination' : 'Add Destination', body, footer);
+}
+
+async function submitDestination() {
+  const name = document.getElementById('destName').value.trim();
+  const name_th = document.getElementById('destNameTh').value.trim();
+  let slug = document.getElementById('destSlug').value.trim();
+  if (!slug) slug = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const province = document.getElementById('destProvince').value.trim();
+  const status = document.getElementById('destStatus').value;
+  const sort_order = parseInt(document.getElementById('destSortOrder').value, 10) || 0;
+  if (!name) { toast('Name is required', 'error'); return; }
+  try {
+    if (editingDestinationId) {
+      await api.put('/admin/destinations/' + editingDestinationId, { name, name_th: name_th || name, slug, province, status, sort_order });
+      toast('Destination updated');
+    } else {
+      await api.post('/admin/destinations', { name, name_th: name_th || name, slug, province, status, sort_order });
+      toast('Destination created');
+    }
+    closeModal();
+    editingDestinationId = null;
+    loadDestinations();
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+function openProviderModal(provider) {
+  const isEdit = !!provider;
+  editingProviderId = isEdit ? provider.id : null;
+  const body = `
+    <form id="providerForm">
+      <div class="form-group">
+        <label>Contact Name / ชื่อผู้ติดต่อ</label>
+        <input type="text" class="form-input" id="provName" ${isEdit ? '' : 'required'} placeholder="ชื่อ-นามสกุล" value="${escAttr(provider?.user_name || '')}">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" class="form-input" id="provEmail" ${isEdit ? '' : 'required'} placeholder="operator@company.com" value="${escAttr(provider?.user_email || '')}">
+      </div>
+      <div class="form-group">
+        <label>Phone / เบอร์โทร</label>
+        <input type="tel" class="form-input" id="provPhone" placeholder="0812345678" value="${escAttr(provider?.user_phone || provider?.contact_phone || '')}">
+      </div>
+      <div class="form-group">
+        <label>Company Name / ชื่อบริษัท</label>
+        <input type="text" class="form-input" id="provCompany" required placeholder="ชื่อบริษัทหรือร้านเรือ" value="${escAttr(provider?.company_name || '')}">
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea class="form-input form-textarea" id="provDesc" rows="2" placeholder="รายละเอียดธุรกิจ">${escAttr(provider?.description || '')}</textarea>
+      </div>
+      <div class="form-group" id="provPasswordGroup" style="${isEdit ? 'display:none' : ''}">
+        <label>Password (รหัสผ่านสำหรับเข้าสู่ระบบ)</label>
+        <input type="password" class="form-input" id="provPassword" ${isEdit ? '' : 'required minlength="6"'} placeholder="${isEdit ? 'เว้นว่างเพื่อไม่เปลี่ยนรหัส' : 'อย่างน้อย 6 ตัวอักษร'}">
+      </div>
+      ${isEdit ? `<div class="form-group">
+        <label>Status</label>
+        <select class="form-input form-select" id="provStatus">
+          <option value="pending" ${(provider?.status || '') === 'pending' ? 'selected' : ''}>Pending</option>
+          <option value="approved" ${(provider?.status || '') === 'approved' ? 'selected' : ''}>Approved</option>
+          <option value="suspended" ${(provider?.status || '') === 'suspended' ? 'selected' : ''}>Suspended</option>
+        </select>
+      </div>` : ''}
+      <div class="form-group" id="provAutoApprovedWrap" style="display:${isEdit ? 'none' : 'flex'};align-items:center;gap:10px">
+        <input type="checkbox" id="provAutoApproved" style="width:18px;height:18px">
+        <label for="provAutoApproved" style="margin:0;font-weight:500">อนุมัติทันที (ไม่ต้องรอตรวจสอบ)</label>
+      </div>
+      ${isEdit ? `
+      <div class="form-group" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <label style="font-weight:700;color:var(--ocean-600)"><i class="fas fa-file-alt" style="margin-right:6px"></i>เอกสารพาร์ทเนอร์ (ระดับบริษัท)</label>
+        <small style="display:block;color:var(--muted);font-size:11px;margin-bottom:12px">รองรับ JPG, PNG, PDF (สูงสุด 10MB) — เอกสารอนุญาตใช้เรือ/ประกันภัย อัปโหลดที่แต่ละ Tour ในหน้า Tours</small>
+        <div style="display:grid;gap:12px">
+          <div class="doc-upload-row">
+            <label style="flex:0 0 140px;font-size:13px">ใบขับขี่เรือ</label>
+            <div style="flex:1">
+              <input type="file" id="provDocBoatLicense" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadProviderDoc(${provider.id},'boat_license',this)">
+              <button type="button" class="btn btn-outline" style="font-size:12px;padding:8px 12px" onclick="document.getElementById('provDocBoatLicense').click()"><i class="fas fa-upload"></i> อัปโหลด</button>
+              <span id="provDocBoatLicenseStatus" style="margin-left:8px;font-size:12px;color:var(--muted)">${provider?.doc_boat_license ? '<a href="' + APP_PATH_PREFIX + '/' + (provider.doc_boat_license || '') + '" target="_blank"><i class="fas fa-file-pdf"></i> ดูเอกสาร</a>' : 'ยังไม่มี'}</span>
+              <small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">คนขับเรือ (หนึ่งต่อพาร์ทเนอร์)</small>
+            </div>
+          </div>
+          <div class="doc-upload-row">
+            <label style="flex:0 0 140px;font-size:13px">เอกสารอื่นๆ</label>
+            <div style="flex:1">
+              <input type="file" id="provDocOther" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="uploadProviderDoc(${provider.id},'other',this)">
+              <button type="button" class="btn btn-outline" style="font-size:12px;padding:8px 12px" onclick="document.getElementById('provDocOther').click()"><i class="fas fa-upload"></i> อัปโหลด</button>
+              <span id="provDocOtherStatus" style="margin-left:8px;font-size:12px;color:var(--muted)">สามารถอัปโหลดได้หลายไฟล์ (เอกสารบริษัท)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+    </form>
+  `;
+  const footer = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="submitProvider()"><i class="fas fa-${isEdit ? 'save' : 'plus'}"></i> ${isEdit ? 'Save Changes' : 'Create Provider'}</button>
+  `;
+  openModal(isEdit ? 'Edit Provider' : 'Add New Provider', body, footer);
+}
+
+async function submitProvider() {
+  const btn = document.querySelector('.modal-footer .btn-primary');
+  if (btn && btn.disabled) return;
+  if (btn) btn.disabled = true;
+
+  const data = {
+    name: document.getElementById('provName')?.value?.trim() || '',
+    email: document.getElementById('provEmail')?.value?.trim() || '',
+    phone: document.getElementById('provPhone')?.value?.trim() || '',
+    company_name: document.getElementById('provCompany')?.value?.trim() || '',
+    description: document.getElementById('provDesc')?.value?.trim() || '',
+    password: document.getElementById('provPassword')?.value || '',
+    auto_approved: document.getElementById('provAutoApproved')?.checked || false
+  };
+
+  if (!data.company_name) { toast('Please enter company name', 'error'); if (btn) btn.disabled = false; return; }
+  if (!editingProviderId) {
+    if (!data.name) { toast('Please enter contact name', 'error'); if (btn) btn.disabled = false; return; }
+    if (!data.email) { toast('Please enter email', 'error'); if (btn) btn.disabled = false; return; }
+    if (!data.password || data.password.length < 6) { toast('Password must be at least 6 characters', 'error'); if (btn) btn.disabled = false; return; }
+  }
+
+  try {
+    if (editingProviderId) {
+      const putData = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        company_name: data.company_name,
+        description: data.description,
+        contact_phone: data.phone,
+        status: document.getElementById('provStatus')?.value || 'approved'
+      };
+      if (data.password && data.password.length >= 6) putData.password = data.password;
+      await api.put('/admin/providers/' + editingProviderId, putData);
+      toast('Provider updated successfully');
+    } else {
+      const res = await api.post('/admin/providers', { ...data, auto_approved: data.auto_approved });
+      if (!res || res.success === false) throw new Error(res?.message || 'Create failed');
+      toast('Provider created successfully');
+      providersFilter = '';
+    }
+    closeModal();
+    editingProviderId = null;
+    await loadProviders();
+  } catch (err) {
+    console.error('Provider save error:', err);
+    toast('Error: ' + (err.message || 'Failed to save provider'), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ─── Boats ─────────────────────────────────────────────────────────────
+async function loadBoats() {
+  const tbody = document.getElementById('boatsBody');
+  tbody.innerHTML = '<tr><td colspan="5"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+
+  try {
+    let boats = [];
+    try {
+      const res = await api.get('/admin/boats');
+      boats = res.data?.boats || res.data || [];
+    } catch {
+      const res = await api.get('/admin/tours');
+      const tours = res.data?.tours || res.data || [];
+      boats = tours.map(t => ({
+        name: t.boat_name || t.name || '-',
+        type: t.boat_type || '-',
+        provider: t.provider_name || t.provider || '-',
+        capacity: t.max_passengers || t.capacity || '-',
+        status: t.status || 'active',
+      }));
+    }
+
+    if (!boats.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-sailboat"></i><p>No boats found</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = boats.map(b => `<tr>
+      <td><strong>${escHtml(b.name || b.boat_name || '-')}</strong></td>
+      <td>${escHtml(b.type || b.boat_type || '-')}</td>
+      <td>${escHtml(b.provider || b.provider_name || '-')}</td>
+      <td>${b.capacity || b.max_passengers || '-'}</td>
+      <td><span class="status ${statusClass(b.status || 'active')}">${statusLabel(b.status || 'active')}</span></td>
+    </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+// ─── Reviews ───────────────────────────────────────────────────────────
+let reviewsFilter = 'pending';
+
+async function loadReviews() {
+  const tbody = document.getElementById('reviewsBody');
+  tbody.innerHTML = '<tr><td colspan="7"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+
+  try {
+    const params = reviewsFilter ? '?status=' + reviewsFilter : '';
+    const res = await api.get('/admin/reviews' + params);
+    reviewsData = res.data?.reviews || res.data || [];
+
+    renderReviewFilters();
+
+    if (!reviewsData.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-star"></i><p>No reviews found</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = reviewsData.map(r => {
+      const name = r.user_name || r.reviewer || r.customer_name || 'Anonymous';
+      const isPending = (r.status || '').toLowerCase() === 'pending';
+      return `<tr>
+        <td><div class="user-cell"><div class="avatar" style="background:${avatarColor(name)}">${avatarLetter(name)}</div><div>${escHtml(name)}</div></div></td>
+        <td>${escHtml(r.tour_name || r.tour || '-')}</td>
+        <td style="color:#f59e0b">${renderStars(r.rating)}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(r.comment || r.review || '')}">${escHtml(r.comment || r.review || '-')}</td>
+        <td>${formatDate(r.created_at || r.date)}</td>
+        <td><span class="status ${statusClass(r.status)}">${statusLabel(r.status)}</span></td>
+        <td>
+          ${isPending ? `<button class="action-btn" style="color:#22c55e" title="Approve" onclick="approveReview(${r.id})"><i class="fas fa-check"></i></button>` : ''}
+          ${isPending ? `<button class="action-btn" style="color:#ef4444" title="Reject" onclick="rejectReview(${r.id})"><i class="fas fa-times"></i></button>` : ''}
+          ${!isPending ? `<span style="font-size:11px;color:var(--muted)">${statusLabel(r.status)}</span>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+
+    const pendingCount = reviewsData.length;
+    if (reviewsFilter === 'pending' || !reviewsFilter) {
+      const badge = document.getElementById('badgeReviews');
+      badge.textContent = pendingCount || '';
+      badge.style.display = pendingCount ? 'inline' : 'none';
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+function renderReviewFilters() {
+  const el = document.getElementById('reviewFilters');
+  const statuses = ['pending', 'approved', 'rejected'];
+  const labels = ['Pending', 'Approved', 'Rejected'];
+  el.innerHTML = statuses.map((s, i) => {
+    return `<button class="filter-tab ${reviewsFilter === s ? (s === 'pending' ? 'active-warning' : 'active') : ''}" onclick="reviewsFilter='${s}';loadReviews()">${labels[i]}</button>`;
+  }).join('');
+}
+
+async function approveReview(id) {
+  try {
+    await api.put('/admin/reviews/' + id + '/approve');
+    toast('Review approved');
+    loadReviews();
+  } catch (err) { toast('Error: ' + err.message, 'error'); }
+}
+
+async function rejectReview(id) {
+  showConfirm('Reject Review', 'Are you sure you want to reject this review?', async () => {
+    try {
+      await api.put('/admin/reviews/' + id + '/reject');
+      toast('Review rejected');
+      loadReviews();
+    } catch (err) { toast('Error: ' + err.message, 'error'); }
+  });
+}
+
+// ─── Finance ───────────────────────────────────────────────────────────
+async function loadFinance() {
+  try {
+    const res = await api.get('/admin/finance');
+    const d = res.data;
+
+    document.getElementById('financeStats').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon" style="background:#eff6ff;color:#3b82f6"><i class="fas fa-dollar-sign"></i></div></div>
+        <div class="stat-value">${formatCurrency(d.total_revenue)}</div>
+        <div class="stat-label">Total Revenue</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon" style="background:#f0fdf4;color:#22c55e"><i class="fas fa-hand-holding-dollar"></i></div></div>
+        <div class="stat-value">${formatCurrency(d.commission || d.platform_commission)}</div>
+        <div class="stat-label">Platform Commission</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon" style="background:#fef3c7;color:#f59e0b"><i class="fas fa-clock"></i></div></div>
+        <div class="stat-value">${formatCurrency(d.pending_payouts)}</div>
+        <div class="stat-label">Pending Payouts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon" style="background:#fae8ff;color:#a855f7"><i class="fas fa-receipt"></i></div></div>
+        <div class="stat-value">${formatCurrency(d.refunds)}</div>
+        <div class="stat-label">Refunds</div>
+      </div>
+    `;
+
+    renderFinanceChart(d.monthly || d.monthly_revenue || []);
+    renderPayouts(d.provider_payouts || []);
+  } catch (err) {
+    toast('Failed to load finance data: ' + err.message, 'error');
+  }
+}
+
+function renderFinanceChart(monthly) {
+  const ctx = document.getElementById('financeChart').getContext('2d');
+  if (financeChartInstance) financeChartInstance.destroy();
+
+  const labels = monthly.map(m => m.month || m.label || '');
+  const values = monthly.map(m => Number(m.revenue || m.amount || m.value || 0));
+
+  financeChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels.length ? labels : ['No data'],
+      datasets: [{
+        label: 'Revenue (฿)',
+        data: values.length ? values : [0],
+        backgroundColor: '#0077b6',
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle' } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => '฿' + (v >= 1000 ? (v / 1000) + 'K' : v) } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderPayouts(payouts) {
+  const tbody = document.getElementById('payoutsBody');
+  if (!payouts.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-wallet"></i><p>No payout data</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = payouts.map(p => `<tr>
+    <td><strong>${escHtml(p.provider_name || p.provider || p.name || '-')}</strong></td>
+    <td>${formatCurrencyFull(p.revenue || p.total_revenue || 0)}</td>
+    <td>${formatCurrencyFull(p.commission || 0)}</td>
+    <td style="font-weight:600">${formatCurrencyFull(p.net_payout || p.payout || (Number(p.revenue || 0) - Number(p.commission || 0)))}</td>
+    <td><span class="status ${statusClass(p.status || 'pending')}">${statusLabel(p.status || 'pending')}</span></td>
+  </tr>`).join('');
+}
+
+function exportFinance() {
+  toast('Preparing export...', 'info');
+  api.get('/admin/finance').then(res => {
+    const d = res.data;
+    const rows = [['Provider', 'Revenue', 'Commission', 'Net Payout', 'Status']];
+    (d.provider_payouts || []).forEach(p => {
+      rows.push([
+        p.provider_name || p.provider || '',
+        p.revenue || p.total_revenue || 0,
+        p.commission || 0,
+        p.net_payout || p.payout || 0,
+        p.status || ''
+      ]);
+    });
+    downloadCSV(rows, 'finance_report.csv');
+    toast('Export downloaded');
+  }).catch(err => toast('Export failed: ' + err.message, 'error'));
+}
+
+// ─── Users ─────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const search = document.getElementById('userSearch')?.value?.trim() || '';
+  const params = new URLSearchParams({ page: usersPage, limit: 20 });
+  if (search) params.set('search', search);
+
+  const tbody = document.getElementById('usersBody');
+  tbody.innerHTML = '<tr><td colspan="5"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+
+  try {
+    const res = await api.get('/admin/users?' + params.toString());
+    const users = res.data?.users || res.data || [];
+    const total = res.data?.total || users.length;
+    const pages = Math.ceil(total / 20) || 1;
+
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-users"></i><p>No users found</p></div></td></tr>';
+      document.getElementById('usersPagination').innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+      const name = u.name || ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || 'Unknown';
+      return `<tr>
+        <td><div class="user-cell"><div class="avatar" style="background:${avatarColor(name)}">${avatarLetter(name)}</div><div>${escHtml(name)}</div></div></td>
+        <td>${escHtml(u.email || '-')}</td>
+        <td><span class="status ${u.role === 'admin' ? 'status-active' : (u.role === 'provider' ? 'status-pending' : 'status-completed')}">${statusLabel(u.role || 'user')}</span></td>
+        <td>${u.bookings_count || u.total_bookings || 0}</td>
+        <td>${formatDate(u.created_at || u.joined)}</td>
+      </tr>`;
+    }).join('');
+
+    renderPagination('usersPagination', usersPage, pages, (p) => { usersPage = p; loadUsers(); });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+// ─── Staff ─────────────────────────────────────────────────────────────
+const STAFF_MODULES = ['dashboard','bookings','tours','providers','destinations','boats','reviews','finance','users','settings','promotions','cms'];
+let editingStaffId = null;
+
+async function loadStaff() {
+  const tbody = document.getElementById('staffBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+  try {
+    const res = await api.get('/admin/staff');
+    const list = res.data?.staff || [];
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><i class="fas fa-user-shield"></i><p>ยังไม่มี Staff — กดปุ่มเพิ่ม Staff</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(s => {
+      const mods = (s.modules || []).join(', ') || '-';
+      return `<tr>
+        <td>${escHtml(s.name || '-')}</td>
+        <td>${escHtml(s.email || '-')}</td>
+        <td><span style="font-size:12px;color:var(--muted)">${escHtml(mods)}</span></td>
+        <td><button class="action-btn" title="Edit permissions" onclick="editStaffPermissions(${s.id})"><i class="fas fa-edit"></i></button></td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>${escHtml(err.message)}</p></div></td></tr>`;
+  }
+}
+
+function openStaffModal(staff) {
+  const isEdit = !!staff;
+  editingStaffId = staff ? staff.id : null;
+  const mods = staff?.modules || [];
+  const modsHtml = STAFF_MODULES.map(m => `<label style="display:block;margin:4px 0"><input type="checkbox" name="staffMod" value="${m}" ${mods.includes(m) || mods.includes('*') ? 'checked' : ''}> ${m}</label>`).join('');
+  const fullAccess = mods.includes('*');
+  const body = isEdit
+    ? `<div class="form-group"><label>สิทธิ์ (Modules)</label><div style="max-height:200px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:8px"><label style="display:block;margin:4px 0"><input type="checkbox" id="staffModAll" ${fullAccess ? 'checked' : ''} onchange="document.querySelectorAll('[name=staffMod]').forEach(c=>c.checked=this.checked)"> * (Full access)</label>${modsHtml}</div></div>`
+    : `<div class="form-group"><label>ชื่อ</label><input type="text" class="form-input" id="staffName" placeholder="ชื่อ-นามสกุล" value="${escHtml(staff?.name || '')}" required></div>
+       <div class="form-group"><label>Email</label><input type="email" class="form-input" id="staffEmail" placeholder="staff@boatly.com" value="${escHtml(staff?.email || '')}" required></div>
+       <div class="form-group"><label>รหัสผ่าน (อย่างน้อย 6 ตัว)</label><input type="password" class="form-input" id="staffPass" placeholder="Password" required></div>
+       <div class="form-group"><label>สิทธิ์ (Modules)</label><div style="max-height:200px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:8px"><label style="display:block;margin:4px 0"><input type="checkbox" id="staffModAll" onchange="document.querySelectorAll('[name=staffMod]').forEach(c=>c.checked=this.checked)"> * (Full access)</label>${modsHtml}</div></div>`;
+  const footer = `<button class="btn btn-primary" onclick="saveStaff()"><i class="fas fa-save"></i> บันทึก</button>`;
+  openModal(isEdit ? 'แก้ไขสิทธิ์ Staff' : 'เพิ่ม Staff', body, footer);
+}
+
+function editStaffPermissions(id) {
+  api.get('/admin/staff/' + id).then(res => {
+    if (res.success && res.data) openStaffModal(res.data);
+  }).catch(e => toast(e.message, 'error'));
+}
+
+async function saveStaff() {
+  const mods = Array.from(document.querySelectorAll('[name=staffMod]:checked')).map(c => c.value);
+  if (document.getElementById('staffModAll')?.checked) mods.push('*');
+  if (editingStaffId) {
+    await api.put('/admin/staff/' + editingStaffId, { modules: [...new Set(mods)] });
+    toast('อัปเดตสิทธิ์แล้ว');
+  } else {
+    const name = document.getElementById('staffName')?.value?.trim();
+    const email = document.getElementById('staffEmail')?.value?.trim();
+    const pass = document.getElementById('staffPass')?.value;
+    if (!name || !email || !pass || pass.length < 6) { toast('กรุณากรอกชื่อ, อีเมล และรหัสผ่านอย่างน้อย 6 ตัว', 'error'); return; }
+    await api.post('/admin/staff', { name, email, password: pass, modules: [...new Set(mods)] });
+    toast('เพิ่ม Staff สำเร็จ');
+  }
+  closeModal();
+  editingStaffId = null;
+  loadStaff();
+}
+
+// ─── Pagination ────────────────────────────────────────────────────────
+function renderPagination(containerId, current, totalPages, onPage) {
+  const el = document.getElementById(containerId);
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let btns = '';
+  btns += `<button class="page-btn" ${current <= 1 ? 'disabled' : ''} onclick="void(0)" data-page="${current - 1}"><i class="fas fa-chevron-left" style="font-size:11px"></i></button>`;
+
+  const start = Math.max(1, current - 2);
+  const end = Math.min(totalPages, current + 2);
+  for (let i = start; i <= end; i++) {
+    btns += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="void(0)" data-page="${i}">${i}</button>`;
+  }
+
+  btns += `<button class="page-btn" ${current >= totalPages ? 'disabled' : ''} onclick="void(0)" data-page="${current + 1}"><i class="fas fa-chevron-right" style="font-size:11px"></i></button>`;
+
+  el.innerHTML = `<div class="pagination-info">Page ${current} of ${totalPages}</div><div class="pagination-btns">${btns}</div>`;
+
+  el.querySelectorAll('.page-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.dataset.page);
+      if (p >= 1 && p <= totalPages) onPage(p);
+    });
+  });
+}
+
+// ─── CSV Export ────────────────────────────────────────────────────────
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ─── HTML Escaping ─────────────────────────────────────────────────────
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function escAttr(s) {
+  return String(s ?? '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── Promotions (carousel, max 8 active) ───────────────────────────────
+let editingPromotionId = null;
+
+async function loadPromotionsAdmin() {
+  const tbody = document.getElementById('promotionsBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7"><div class="page-loading"><div class="spinner spinner-dark spinner-lg"></div><span>Loading...</span></div></td></tr>';
+  try {
+    const res = await api.get('/promotions?manage=1');
+    const rows = res.data || [];
+    const activeN = rows.filter(r => Number(r.is_active) === 1).length;
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;color:var(--muted)">ยังไม่มีโปรโมชั่น — กด «เพิ่มโปร»</td></tr>';
+      return;
+    }
+    const summaryRow = `<tr style="background:rgba(0,180,216,0.08)"><td colspan="7" style="padding:10px 14px;font-size:12px">โปรที่เปิดแสดงอยู่: <strong>${activeN}</strong> / 8 (สูงสุดที่แสดงบนแอป)</td></tr>`;
+    tbody.innerHTML = summaryRow + rows.map(p => {
+      const disc = p.discount_type === 'percentage'
+        ? (Number(p.discount_value || 0) + '%')
+        : formatCurrencyFull(p.discount_value || 0);
+      const dates = (p.start_date || '—') + ' → ' + (p.end_date || '—');
+      const on = Number(p.is_active) === 1;
+      return `<tr>
+        <td>${escHtml(p.sort_order)}</td>
+        <td><strong>${escHtml(p.title_th || p.title_en || '-')}</strong></td>
+        <td style="font-family:monospace">${escHtml(p.code || '—')}</td>
+        <td>${escHtml(disc)}</td>
+        <td><span class="status ${on ? 'status-active' : 'status-pending'}" style="${on ? '' : 'opacity:0.85'}">${on ? 'แสดง' : 'ปิด'}</span></td>
+        <td style="font-size:12px">${escHtml(dates)}</td>
+        <td>
+          <button class="action-btn" onclick="openPromotionModal(${p.id})" title="แก้ไข"><i class="fas fa-edit"></i></button>
+          <button class="action-btn" onclick="deletePromotionConfirm(${p.id})" title="ลบ"><i class="fas fa-trash" style="color:#ef4444"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:24px;color:#ef4444">${escHtml(e.message || 'โหลดไม่สำเร็จ')}</td></tr>`;
+  }
+}
+
+function openPromotionModal(id) {
+  editingPromotionId = id;
+  const isEdit = id != null;
+  openModal(isEdit ? 'แก้ไขโปรโมชั่น' : 'เพิ่มโปรโมชั่น', `
+    <div class="form-group"><label>หัวข้อ (TH) *</label><input type="text" id="promoTitleTh" class="form-input" placeholder="เช่น ส่วนลด 20% ล่องเรือ"></div>
+    <div class="form-group"><label>หัวข้อ (EN)</label><input type="text" id="promoTitleEn" class="form-input" placeholder="English title"></div>
+    <div class="form-group"><label>คำอธิบาย (TH)</label><textarea id="promoDescTh" class="form-input form-textarea" placeholder="รายละเอียดสั้นๆ"></textarea></div>
+    <div class="form-group">
+      <label>อัปโหลดรูปการ์ด (1 รูปต่อการ์ด) — แนะนำ <strong>560×280 px</strong> (อัตราส่วน 2:1) · รูปขนาดอื่นจะถูกปรับให้พอดีการ์ดอัตโนมัติ</label>
+      <input type="hidden" id="promoImageUrl" value="">
+      <div id="promoImagePreviewWrap" style="display:none;margin-bottom:8px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--border)">
+        <img id="promoImagePreview" alt="รูปโปรโมชั่น" src="" style="width:100%;height:120px;object-fit:cover;display:block">
+      </div>
+      <input type="file" id="promoImageInput" accept="image/jpeg,image/png,image/gif,image/webp" style="font-size:13px" onchange="uploadPromotionCardImage(this)">
+      <button type="button" class="btn btn-outline" style="margin-top:6px;font-size:12px" onclick="clearPromotionImage()">ลบรูปนี้</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>Gradient CSS</label><input type="text" id="promoGradient" class="form-input" placeholder="linear-gradient(135deg,#023e8a,#00b4d8)"></div>
+      <div class="form-group"><label>ไอคอน (FontAwesome)</label><input type="text" id="promoIcon" class="form-input" placeholder="fa-ticket"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>ลิงก์</label>
+        <select id="promoLinkType" class="form-input form-select" style="height:40px">
+          <option value="none">ไม่มี</option>
+          <option value="boat">เรือ (boat id)</option>
+          <option value="destination">จุดหมาย (slug)</option>
+          <option value="url">URL ภายนอก</option>
+        </select>
+      </div>
+      <div class="form-group"><label>ค่าลิงก์</label><input type="text" id="promoLinkValue" class="form-input" placeholder="id หรือ slug หรือ URL"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>โค้ดส่วนลด</label><input type="text" id="promoCode" class="form-input" placeholder="AYUT20"></div>
+      <div class="form-group"><label>ประเภทส่วนลด</label>
+        <select id="promoDiscType" class="form-input form-select" style="height:40px">
+          <option value="percentage">เปอร์เซ็นต์</option>
+          <option value="fixed">จำนวนเงิน</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>มูลค่าส่วนลด</label><input type="number" step="0.01" id="promoDiscVal" class="form-input" placeholder="20"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label>เริ่ม (วันที่)</label><input type="date" id="promoStart" class="form-input"></div>
+      <div class="form-group"><label>สิ้นสุด (วันที่)</label><input type="date" id="promoEnd" class="form-input"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end">
+      <div class="form-group"><label>ลำดับแสดง</label><input type="number" id="promoSort" class="form-input" value="0"></div>
+      <div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="promoActive" checked> แสดงโปรนี้ (นับรวม 8 การ์ดสูงสุด)</label></div>
+    </div>
+  `, `<button class="btn btn-primary" onclick="savePromotion()"><i class="fas fa-save"></i> บันทึก</button>`);
+
+  if (isEdit) {
+    api.get('/promotions/' + id).then(r => {
+      const p = r.data;
+      if (!p) return;
+      document.getElementById('promoTitleTh').value = p.title_th || '';
+      document.getElementById('promoTitleEn').value = p.title_en || '';
+      document.getElementById('promoDescTh').value = p.description_th || '';
+      document.getElementById('promoGradient').value = p.gradient_colors || '';
+      document.getElementById('promoIcon').value = p.icon || 'fa-ticket';
+      document.getElementById('promoLinkType').value = p.link_type || 'none';
+      document.getElementById('promoLinkValue').value = p.link_value || '';
+      document.getElementById('promoCode').value = p.code || '';
+      document.getElementById('promoDiscType').value = p.discount_type || 'percentage';
+      document.getElementById('promoDiscVal').value = p.discount_value != null ? p.discount_value : '';
+      document.getElementById('promoStart').value = (p.start_date || '').slice(0, 10);
+      document.getElementById('promoEnd').value = (p.end_date || '').slice(0, 10);
+      document.getElementById('promoSort').value = p.sort_order != null ? p.sort_order : 0;
+      document.getElementById('promoActive').checked = Number(p.is_active) === 1;
+      setPromoImagePreview(p.image_url || '');
+    }).catch(() => toast('โหลดข้อมูลโปรไม่สำเร็จ', 'error'));
+  } else {
+    document.getElementById('promoGradient').value = 'linear-gradient(135deg,#023e8a,#00b4d8)';
+    document.getElementById('promoIcon').value = 'fa-ticket';
+    setPromoImagePreview('');
+  }
+}
+
+function promoAbsoluteImageSrc(url) {
+  if (!url) return '';
+  const s = String(url).trim();
+  if (s.startsWith('http')) return s;
+  const origin = window.location.origin;
+  const p = s.startsWith('/') ? s : '/' + s;
+  return origin + p;
+}
+
+function setPromoImagePreview(url) {
+  const wrap = document.getElementById('promoImagePreviewWrap');
+  const img = document.getElementById('promoImagePreview');
+  const hid = document.getElementById('promoImageUrl');
+  if (!hid || !wrap || !img) return;
+  const u = url && String(url).trim();
+  hid.value = u || '';
+  if (u) {
+    img.src = promoAbsoluteImageSrc(u);
+    wrap.style.display = 'block';
+  } else {
+    img.src = '';
+    wrap.style.display = 'none';
+  }
+}
+
+function clearPromotionImage() {
+  setPromoImagePreview('');
+  const inp = document.getElementById('promoImageInput');
+  if (inp) inp.value = '';
+}
+
+async function uploadPromotionCardImage(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const fd = new FormData();
+  fd.append('image', f);
+  try {
+    const res = await api.uploadFile('/upload/promotion', fd);
+    const u = res.data && res.data.url;
+    if (!u) throw new Error('ไม่ได้รับ URL รูป');
+    setPromoImagePreview(u);
+    toast('อัปโหลดและปรับขนาดรูปแล้ว (560×280 px)', 'success');
+  } catch (e) {
+    toast(e.message || 'อัปโหลดไม่สำเร็จ', 'error');
+  }
+  input.value = '';
+}
+
+async function savePromotion() {
+  const body = {
+    title_th: document.getElementById('promoTitleTh').value.trim(),
+    gradient_colors: document.getElementById('promoGradient').value.trim(),
+    icon: document.getElementById('promoIcon').value.trim() || 'fa-ticket',
+    link_type: document.getElementById('promoLinkType').value,
+    discount_type: document.getElementById('promoDiscType').value,
+    discount_value: parseFloat(document.getElementById('promoDiscVal').value) || 0,
+    sort_order: parseInt(document.getElementById('promoSort').value, 10) || 0,
+    is_active: document.getElementById('promoActive').checked ? 1 : 0
+  };
+  const te = document.getElementById('promoTitleEn').value.trim();
+  if (te) body.title_en = te;
+  const dth = document.getElementById('promoDescTh').value.trim();
+  if (dth) body.description_th = dth;
+  const lv = document.getElementById('promoLinkValue').value.trim();
+  if (lv) body.link_value = lv;
+  const pc = document.getElementById('promoCode').value.trim();
+  if (pc) body.code = pc;
+  const sd = document.getElementById('promoStart').value;
+  if (sd) body.start_date = sd;
+  const ed = document.getElementById('promoEnd').value;
+  if (ed) body.end_date = ed;
+  const iuEl = document.getElementById('promoImageUrl');
+  if (iuEl) {
+    const iu = iuEl.value.trim();
+    if (iu) body.image_url = iu;
+    else if (editingPromotionId) body.image_url = '';
+  }
+  if (!body.title_th) {
+    toast('กรุณากรอกหัวข้อ (TH)', 'error');
+    return;
+  }
+  try {
+    if (editingPromotionId) {
+      await api.put('/promotions/' + editingPromotionId, body);
+      toast('บันทึกแล้ว', 'success');
+    } else {
+      await api.post('/promotions', body);
+      toast('สร้างโปรแล้ว', 'success');
+    }
+    closeModal();
+    loadPromotionsAdmin();
+  } catch (e) {
+    toast(e.message || 'บันทึกไม่สำเร็จ', 'error');
+  }
+}
+
+function deletePromotionConfirm(id) {
+  showConfirm('ลบโปรโมชั่น', 'ลบรายการนี้ถาวร?', async () => {
+    try {
+      await api.del('/promotions/' + id);
+      toast('ลบแล้ว', 'success');
+      loadPromotionsAdmin();
+    } catch (e) {
+      toast(e.message || 'ลบไม่สำเร็จ', 'error');
+    }
+  }, false);
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────
+async function init() {
+  if (window.innerWidth <= 768) document.getElementById('menuBtn').style.display = 'flex';
+  window.addEventListener('resize', () => {
+    document.getElementById('menuBtn').style.display = window.innerWidth <= 768 ? 'flex' : 'none';
+  });
+
+  if (!api.token) {
+    showLoginScreen();
+    return;
+  }
+
+  try {
+    const res = await api.get('/auth/me');
+    const user = res.data || res.user;
+    if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
+      api.clearToken();
+      showLoginScreen();
+      return;
+    }
+    updateSidebarUser(user);
+    applyStaffModuleNav();
+    hideLoginScreen();
+    loadDashboard();
+  } catch {
+    api.clearToken();
+    showLoginScreen();
+  }
+}
+
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+document.getElementById('confirmOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
+});
+
+// ─── CMS Functions ───────────────────────────────────────────────
+async function loadCMS() {
+  try {
+    const [introRes, helpRes, annRes] = await Promise.all([
+      api.get('/admin/cms?type=feedback_intro'),
+      api.get('/admin/cms?type=help_item'),
+      api.get('/admin/cms?type=announcement')
+    ]);
+    const intro = (introRes.data || [])[0] || {};
+    document.getElementById('cmsFeedbackTitleTh').value = intro.title_th || '';
+    document.getElementById('cmsFeedbackBodyTh').value = intro.body_th || '';
+
+    const helpList = document.getElementById('cmsHelpList');
+    const helpItems = helpRes.data || [];
+    helpList.innerHTML = helpItems.length ? helpItems.map((h, i) => `
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
+        <div style="flex:1"><strong>${escHtml(h.title_th || h.title_en || '-')}</strong><div style="font-size:12px;color:var(--muted);margin-top:4px">${escHtml((h.body_th || h.body_en || '').substring(0,80))}...</div></div>
+        <button class="action-btn" onclick="editCmsHelp(${h.id})" title="แก้ไข"><i class="fas fa-edit"></i></button>
+        <button class="action-btn" onclick="deleteCmsItem(${h.id}, loadCMS)" title="ลบ"><i class="fas fa-trash" style="color:#ef4444"></i></button>
+      </div>
+    `).join('') : '<p style="font-size:13px;color:var(--muted)">ยังไม่มีรายการ</p>';
+
+    const annList = document.getElementById('cmsAnnouncementsList');
+    const annItems = annRes.data || [];
+    annList.innerHTML = annItems.length ? annItems.map(a => `
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
+        <div style="flex:1"><strong>${escHtml(a.title_th || a.title_en || '-')}</strong><div style="font-size:12px;color:var(--muted);margin-top:4px">${escHtml((a.body_th || a.body_en || '').substring(0,80))}...</div></div>
+        <button class="action-btn" onclick="editCmsAnnouncement(${a.id})" title="แก้ไข"><i class="fas fa-edit"></i></button>
+        <button class="action-btn" onclick="deleteCmsItem(${a.id}, loadCMS)" title="ลบ"><i class="fas fa-trash" style="color:#ef4444"></i></button>
+      </div>
+    `).join('') : '<p style="font-size:13px;color:var(--muted)">ยังไม่มีประกาศ</p>';
+  } catch (e) {
+    console.error('Load CMS error:', e);
+  }
+}
+
+async function saveCmsFeedbackIntro() {
+  try {
+    const title = document.getElementById('cmsFeedbackTitleTh').value.trim();
+    const body = document.getElementById('cmsFeedbackBodyTh').value.trim();
+    const res = await api.get('/admin/cms?type=feedback_intro');
+    const existing = (res.data || [])[0];
+    if (existing) {
+      await api.request('PUT', '/admin/cms/' + existing.id, { title_th: title, body_th: body });
+      toast('บันทึกแล้ว', 'success');
+    } else {
+      await api.post('/admin/cms', { content_type: 'feedback_intro', title_th: title, body_th: body });
+      toast('บันทึกแล้ว', 'success');
+    }
+  } catch (e) {
+    toast(e.message || 'Error', 'error');
+  }
+}
+
+let cmsHelpEditId = null;
+function openCmsHelpModal(id) {
+  cmsHelpEditId = id || null;
+  openModal('เพิ่ม/แก้ไข ศูนย์ช่วยเหลือ', `
+    <div class="form-group"><label>หัวข้อ (TH)</label><input type="text" id="cmsHelpTitle" class="form-input" placeholder="เช่น วิธีจองทริป"></div>
+    <div class="form-group"><label>เนื้อหา (TH)</label><textarea id="cmsHelpBody" class="form-input form-textarea" placeholder="คำตอบหรือคำอธิบาย"></textarea></div>
+  `, `<button class="btn btn-primary" onclick="saveCmsHelp()"><i class="fas fa-save"></i> บันทึก</button>`);
+  if (id) {
+    api.get('/admin/cms').then(r => {
+      const item = (r.data || []).find(x => x.id == id);
+      if (item) {
+        document.getElementById('cmsHelpTitle').value = item.title_th || '';
+        document.getElementById('cmsHelpBody').value = item.body_th || '';
+      }
+    });
+  }
+}
+
+async function saveCmsHelp() {
+  const title = document.getElementById('cmsHelpTitle').value.trim();
+  const body = document.getElementById('cmsHelpBody').value.trim();
+  if (!title) return toast('กรุณากรอกหัวข้อ', 'error');
+  try {
+    if (cmsHelpEditId) {
+      await api.request('PUT', '/admin/cms/' + cmsHelpEditId, { title_th: title, body_th: body });
+    } else {
+      await api.post('/admin/cms', { content_type: 'help_item', title_th: title, body_th: body });
+    }
+    closeModal();
+    loadCMS();
+    toast('บันทึกแล้ว', 'success');
+  } catch (e) {
+    toast(e.message || 'Error', 'error');
+  }
+}
+
+function editCmsHelp(id) { openCmsHelpModal(id); }
+
+let cmsAnnEditId = null;
+function openCmsAnnouncementModal(id) {
+  cmsAnnEditId = id || null;
+  openModal('เพิ่ม/แก้ไข ประกาศ', `
+    <div class="form-group"><label>หัวข้อ (TH)</label><input type="text" id="cmsAnnTitle" class="form-input" placeholder="เช่น ประกาศสำคัญ"></div>
+    <div class="form-group"><label>เนื้อหา (TH)</label><textarea id="cmsAnnBody" class="form-input form-textarea" placeholder="รายละเอียดประกาศ"></textarea></div>
+  `, `<button class="btn btn-primary" onclick="saveCmsAnnouncement()"><i class="fas fa-save"></i> บันทึก</button>`);
+  if (id) {
+    api.get('/admin/cms').then(r => {
+      const item = (r.data || []).find(x => x.id == id);
+      if (item) {
+        document.getElementById('cmsAnnTitle').value = item.title_th || '';
+        document.getElementById('cmsAnnBody').value = item.body_th || '';
+      }
+    });
+  }
+}
+
+async function saveCmsAnnouncement() {
+  const title = document.getElementById('cmsAnnTitle').value.trim();
+  const body = document.getElementById('cmsAnnBody').value.trim();
+  if (!title) return toast('กรุณากรอกหัวข้อ', 'error');
+  try {
+    if (cmsAnnEditId) {
+      await api.request('PUT', '/admin/cms/' + cmsAnnEditId, { title_th: title, body_th: body });
+    } else {
+      await api.post('/admin/cms', { content_type: 'announcement', title_th: title, body_th: body });
+    }
+    closeModal();
+    loadCMS();
+    toast('บันทึกแล้ว', 'success');
+  } catch (e) {
+    toast(e.message || 'Error', 'error');
+  }
+}
+
+function editCmsAnnouncement(id) { openCmsAnnouncementModal(id); }
+
+async function deleteCmsItem(id, reload) {
+  showConfirm('ยืนยันการลบ', 'ต้องการลบรายการนี้หรือไม่?', async () => {
+    try {
+      await api.request('DELETE', '/admin/cms/' + id);
+      if (reload) reload();
+      toast('ลบแล้ว', 'success');
+    } catch (e) {
+      toast(e.message || 'Error', 'error');
+    }
+  });
+}
+
+function openFeedbackSubmissionsModal() {
+  api.get('/admin/feedback-submissions').then(r => {
+    const list = r.data || [];
+    const rows = list.map(f => `<tr><td>${escHtml(f.name || f.email || '-')}</td><td>${escHtml(f.message || '').substring(0,100)}</td><td>${formatDate(f.created_at)}</td></tr>`).join('');
+    openModal('ความเห็นที่ลูกค้าส่ง', `<div class="table-card"><table><thead><tr><th>ผู้ส่ง</th><th>ข้อความ</th><th>วันที่</th></tr></thead><tbody>${rows || '<tr><td colspan="3">ยังไม่มีข้อมูล</td></tr>'}</tbody></table></div>`, '');
+  }).catch(e => openModal('ความเห็นที่ลูกค้าส่ง', '<p style="color:#ef4444">โหลดไม่สำเร็จ</p>', ''));
+}
+
+// ─── Settings Functions ──────────────────────────────────────────
+let settingsData = {};
+
+async function loadSettings() {
+  try {
+    const r = await api.request('GET', '/settings/payment-methods');
+    if (r.success && r.data) {
+      settingsData = r.data;
+      const qr = r.data.qr || {};
+      document.getElementById('settPayQr').checked = !!qr.enabled;
+      document.getElementById('settPayCod').checked = !!(r.data.cod && r.data.cod.enabled);
+      document.getElementById('settPayCard').checked = !!(r.data.card && r.data.card.enabled);
+
+      const mode = qr.qr_mode || 'promptpay';
+      document.getElementById('settQrMode').value = mode;
+      toggleQrMode();
+
+      if (qr.promptpay_id) document.getElementById('settPromptPayId').value = qr.promptpay_id;
+      if (qr.account_name) {
+        document.getElementById('settPromptPayName').value = qr.account_name;
+        document.getElementById('settCustomQrName').value = qr.account_name;
+      }
+      if (qr.custom_qr_url) {
+        const preview = document.getElementById('settQrPreview');
+        preview.innerHTML = '<img src="' + qr.custom_qr_url + '" style="width:100%;height:100%;object-fit:contain">';
+      }
+    }
+    try {
+      const tipR = await api.request('GET', '/tip/settings');
+      if (tipR.success && tipR.data) {
+        document.getElementById('settTipEnabled').checked = !!tipR.data.enabled;
+      }
+    } catch (te) { console.warn('Tip settings load:', te); }
+    try {
+      const prR = await api.request('GET', '/pricing/settings');
+      if (prR && prR.data) {
+        document.getElementById('settDynamicPricing').checked = !!prR.data.dynamic_pricing_enabled;
+      }
+    } catch (pe) { console.warn('Pricing settings load:', pe); }
+    try {
+      const aiR = await api.request('GET', '/settings/ai-interests');
+      if (aiR.success && aiR.data && Array.isArray(aiR.data.topics) && aiR.data.topics.length) {
+        renderAdminAiTopicsList(aiR.data.topics);
+      } else {
+        renderAdminAiTopicsList(['วัด', 'ชิล', 'ดำน้ำ', 'อาหาร', 'ธรรมชาติ']);
+      }
+    } catch (ae) {
+      console.warn('AI interests load:', ae);
+      renderAdminAiTopicsList(['วัด', 'ชิล', 'ดำน้ำ', 'อาหาร', 'ธรรมชาติ']);
+    }
+  } catch (e) {
+    console.error('Load settings error:', e);
+  }
+}
+
+function renderAdminAiTopicsList(topics) {
+  const el = document.getElementById('settAiTopicsList');
+  if (!el) return;
+  const list = (topics && topics.length) ? topics : ['วัด'];
+  el.innerHTML = list.map(function(t) {
+    return '<div class="admin-ai-topic-row" style="display:flex;gap:8px;align-items:center">' +
+      '<input type="text" class="form-input admin-ai-topic-input" value="' + escAttr(t) + '" maxlength="40" placeholder="ชื่อหัวข้อ" style="flex:1">' +
+      '<button type="button" class="modal-close" onclick="removeAdminAiTopicRow(this)" title="ลบ" style="flex-shrink:0"><i class="fas fa-times"></i></button></div>';
+  }).join('');
+}
+
+function addAdminAiTopicRow() {
+  const el = document.getElementById('settAiTopicsList');
+  if (!el) return;
+  const div = document.createElement('div');
+  div.className = 'admin-ai-topic-row';
+  div.style.cssText = 'display:flex;gap:8px;align-items:center';
+  div.innerHTML = '<input type="text" class="form-input admin-ai-topic-input" value="" maxlength="40" placeholder="ชื่อหัวข้อ" style="flex:1">' +
+    '<button type="button" class="modal-close" onclick="removeAdminAiTopicRow(this)" title="ลบ" style="flex-shrink:0"><i class="fas fa-times"></i></button>';
+  el.appendChild(div);
+  const inp = div.querySelector('input');
+  if (inp) inp.focus();
+}
+
+function removeAdminAiTopicRow(btn) {
+  const el = document.getElementById('settAiTopicsList');
+  if (!el) return;
+  const rows = el.querySelectorAll('.admin-ai-topic-row');
+  if (rows.length <= 1) {
+    toast('ต้องมีอย่างน้อย 1 หัวข้อ', 'error');
+    return;
+  }
+  const row = btn.closest('.admin-ai-topic-row');
+  if (row) row.remove();
+}
+
+async function saveAiInterestsAdmin() {
+  const statusEl = document.getElementById('settAiTopicsStatus');
+  const inputs = document.querySelectorAll('#settAiTopicsList .admin-ai-topic-input');
+  const topics = [];
+  inputs.forEach(function(inp) {
+    const t = (inp.value || '').trim();
+    if (t) topics.push(t);
+  });
+  if (topics.length < 1) {
+    toast('กรุณากรอกอย่างน้อย 1 หัวข้อ', 'error');
+    return;
+  }
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--ocean-600)"><i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...</span>';
+  try {
+    const r = await api.request('PUT', '/settings/ai-interests', { topics: topics });
+    if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a"><i class="fas fa-check-circle"></i> ' + (r.message || 'บันทึกแล้ว') + '</span>';
+    toast('บันทึกหัวข้อความสนใจแล้ว', 'success');
+    setTimeout(function() { if (statusEl) statusEl.innerHTML = ''; }, 4000);
+  } catch (e) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444"><i class="fas fa-exclamation-circle"></i> ' + escHtml(e.message || 'บันทึกไม่สำเร็จ') + '</span>';
+    toast(e.message || 'บันทึกไม่สำเร็จ', 'error');
+  }
+}
+
+function toggleQrMode() {
+  const mode = document.getElementById('settQrMode').value;
+  document.getElementById('settPromptPaySection').style.display = mode === 'promptpay' ? 'block' : 'none';
+  document.getElementById('settCustomQrSection').style.display = mode === 'custom' ? 'block' : 'none';
+}
+
+function previewQrImage(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('settQrPreview').innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:contain">';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+async function saveQrSettings() {
+  const mode = document.getElementById('settQrMode').value;
+  const statusEl = document.getElementById('settQrStatus');
+  statusEl.innerHTML = '<span style="color:var(--ocean-600)"><i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...</span>';
+
+  let qrUpdate = {
+    qr_mode: mode,
+    account_name: mode === 'promptpay'
+      ? document.getElementById('settPromptPayName').value.trim()
+      : document.getElementById('settCustomQrName').value.trim()
+  };
+
+  if (mode === 'promptpay') {
+    const ppId = document.getElementById('settPromptPayId').value.trim().replace(/-/g, '');
+    if (!ppId || (ppId.length !== 10 && ppId.length !== 13)) {
+      statusEl.innerHTML = '<span style="color:#ef4444"><i class="fas fa-exclamation-circle"></i> กรุณากรอกเบอร์โทร 10 หลัก หรือ เลขบัตร ปชช. 13 หลัก</span>';
+      return;
+    }
+    qrUpdate.promptpay_id = ppId;
+    qrUpdate.custom_qr_url = '';
+  } else {
+    const fileInput = document.getElementById('settQrFile');
+    if (fileInput.files && fileInput.files[0]) {
+      const base64 = await fileToBase64(fileInput.files[0]);
+      qrUpdate.custom_qr_url = base64;
+    } else if (settingsData.qr && settingsData.qr.custom_qr_url) {
+      qrUpdate.custom_qr_url = settingsData.qr.custom_qr_url;
+    }
+    if (!qrUpdate.custom_qr_url) {
+      statusEl.innerHTML = '<span style="color:#ef4444"><i class="fas fa-exclamation-circle"></i> กรุณาอัปโหลดรูป QR Code</span>';
+      return;
+    }
+    qrUpdate.promptpay_id = '';
+  }
+
+  try {
+    const result = await api.request('PUT', '/settings/payment-methods', { qr: qrUpdate });
+    if (result.success && result.data) {
+      settingsData = result.data;
+    }
+    statusEl.innerHTML = '<span style="color:#22c55e"><i class="fas fa-check-circle"></i> บันทึกเรียบร้อย!</span>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#ef4444"><i class="fas fa-exclamation-circle"></i> เกิดข้อผิดพลาด: ' + e.message + '</span>';
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+  });
+}
+
+async function saveTipSettings() {
+  const statusEl = document.getElementById('settTipStatus');
+  const enabled = document.getElementById('settTipEnabled').checked;
+  try {
+    statusEl.innerHTML = '<span style="color:var(--ocean-600)"><i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...</span>';
+    await api.request('PUT', '/tip/settings', { enabled });
+    statusEl.innerHTML = '<span style="color:#22c55e"><i class="fas fa-check-circle"></i> บันทึกเรียบร้อย!</span>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#ef4444"><i class="fas fa-exclamation-circle"></i> เกิดข้อผิดพลาด: ' + (e.message || e) + '</span>';
+  }
+}
+
+async function saveDynamicPricing() {
+  const statusEl = document.getElementById('settDynamicPricingStatus');
+  const enabled = document.getElementById('settDynamicPricing').checked;
+  try {
+    statusEl.innerHTML = '<span style="color:var(--ocean-600)"><i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...</span>';
+    await api.request('PUT', '/pricing/settings', { dynamic_pricing_enabled: enabled });
+    statusEl.innerHTML = '<span style="color:#22c55e"><i class="fas fa-check-circle"></i> บันทึกเรียบร้อย!</span>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#ef4444"><i class="fas fa-exclamation-circle"></i> เกิดข้อผิดพลาด: ' + (e.message || e) + '</span>';
+  }
+}
+
+async function savePaymentToggles() {
+  const statusEl = document.getElementById('settPayStatus');
+  statusEl.innerHTML = '<span style="color:var(--ocean-600)"><i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...</span>';
+  try {
+    await api.request('PUT', '/settings/payment-methods', {
+      qr: { enabled: document.getElementById('settPayQr').checked },
+      cod: { enabled: document.getElementById('settPayCod').checked },
+      card: { enabled: document.getElementById('settPayCard').checked }
+    });
+    statusEl.innerHTML = '<span style="color:#22c55e"><i class="fas fa-check-circle"></i> บันทึกเรียบร้อย!</span>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#ef4444"><i class="fas fa-exclamation-circle"></i> ' + e.message + '</span>';
+  }
+}
+
+init();
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,18 @@
+<?php
+/**
+ * OAuth - แก้ไขค่าด้านล่างแล้วปุ่ม Sign in with Google/Line จะแสดงอัตโนมัติ
+ *
+ * Google: https://console.cloud.google.com/apis/credentials → OAuth Client ID (Web)
+ * Line: https://developers.line.biz/console/ → Callback: yourdomain/boatly/api/auth/line-callback
+ */
+return [
+    'google' => [
+        'client_id' => '',
+        'enabled'   => false,
+    ],
+    'line' => [
+        'channel_id'     => '',
+        'channel_secret' => '',
+        'enabled'        => false,
+    ],
+];

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile Preview - แดชบอร์ดตัวแทน | BOATLY</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Inter','Noto Sans Thai',sans-serif;
+  background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+.preview-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:20px;
+}
+h1{
+  color:#fff;
+  font-size:18px;
+  font-weight:600;
+  text-align:center;
+}
+.phone-frame{
+  width:375px;
+  height:667px;
+  background:#000;
+  border-radius:40px;
+  padding:12px;
+  box-shadow:0 25px 80px rgba(0,0,0,.5),0 0 0 2px #334155,inset 0 0 0 2px #1e293b;
+  position:relative;
+}
+.phone-frame::before{
+  content:'';
+  position:absolute;
+  top:16px;
+  left:50%;
+  transform:translateX(-50%);
+  width:100px;
+  height:24px;
+  background:#000;
+  border-radius:0 0 12px 12px;
+  z-index:10;
+}
+.phone-screen{
+  width:100%;
+  height:100%;
+  background:#fff;
+  border-radius:32px;
+  overflow:hidden;
+}
+.phone-screen iframe{
+  width:375px;
+  height:667px;
+  border:none;
+  transform-origin:0 0;
+}
+.phone-screen-inner{
+  width:375px;
+  height:667px;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.actions{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.actions a,.actions button{
+  padding:10px 20px;
+  border-radius:10px;
+  font-size:13px;
+  font-weight:600;
+  text-decoration:none;
+  border:none;
+  cursor:pointer;
+  font-family:inherit;
+}
+.actions .btn-dashboard{
+  background:linear-gradient(135deg,#0284c7,#0ea5e9);
+  color:#fff;
+}
+.actions .btn-home{
+  background:#334155;
+  color:#fff;
+}
+.actions .btn-resize{
+  background:#475569;
+  color:#fff;
+}
+.actions a:hover,.actions button:hover{opacity:.9}
+.hint{
+  color:#94a3b8;
+  font-size:12px;
+  text-align:center;
+  max-width:320px;
+}
+</style>
+</head>
+<body>
+<div class="preview-wrap">
+  <h1>📱 ตัวอย่างหน้าบนมือถือ</h1>
+  <div class="phone-frame">
+    <div class="phone-screen">
+      <iframe id="previewFrame" src="/boatly/pages/operator/dashboard.php" title="Dashboard Mobile"></iframe>
+    </div>
+  </div>
+  <div class="actions">
+    <a href="/boatly/pages/operator/dashboard.php" class="btn-dashboard" target="_blank">เปิดแดชบอร์ดเต็ม</a>
+    <a href="/boatly/" class="btn-home" target="_blank">กลับหน้าแรก</a>
+    <button class="btn-resize" onclick="toggleSize()">ขยาย/ย่อ</button>
+  </div>
+  <p class="hint">หรือเปิด DevTools (F12) → Toggle device toolbar (Ctrl+Shift+M) เพื่อดู responsive</p>
+</div>
+<script>
+function toggleSize(){
+  var f=document.getElementById('previewFrame');
+  var p=document.querySelector('.phone-frame');
+  if(p.style.transform){
+    p.style.transform='';
+    p.style.width='375px';
+    p.style.height='667px';
+  }else{
+    p.style.transform='scale(0.7)';
+    p.style.width='375px';
+    p.style.height='667px';
+  }
+}
+</script>
+</body>
+</html>

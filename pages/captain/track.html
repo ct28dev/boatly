@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ส่งตำแหน่งเรือ | BOATLY</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0c4a6e, #0284c7); min-height: 100vh; color: #fff; padding: 20px; }
+    .box { background: rgba(255,255,255,0.95); color: #1e293b; border-radius: 20px; padding: 24px; max-width: 400px; margin: 0 auto; }
+    h1 { font-size: 20px; margin-bottom: 8px; color: #0c4a6e; }
+    p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+    input { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 16px; margin-bottom: 12px; }
+    button { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .btn-start { background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #fff; }
+    .btn-stop { background: #ef4444; color: #fff; }
+    .status { padding: 12px; border-radius: 10px; margin-top: 16px; font-size: 13px; }
+    .status.on { background: #dcfce7; color: #166534; }
+    .status.off { background: #fef3c7; color: #92400e; }
+    .status.err { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1><i class="fas fa-ship" style="margin-right:8px"></i>ส่งตำแหน่งเรือ</h1>
+    <p>ใส่เลขการจอง แล้วกดเริ่มส่งตำแหน่ง GPS ให้ลูกค้าติดตามได้แบบ Real-time</p>
+    <input type="number" id="bookingId" placeholder="เลขการจอง (เช่น 1)" min="1">
+    <button class="btn-start" id="btnStart" onclick="startTracking()"><i class="fas fa-play" style="margin-right:8px"></i>เริ่มส่งตำแหน่ง</button>
+    <button class="btn-stop" id="btnStop" onclick="stopTracking()" style="display:none"><i class="fas fa-stop" style="margin-right:8px"></i>หยุดส่ง</button>
+    <div id="status" class="status off">ยังไม่ได้เริ่ม</div>
+  </div>
+  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+  <script>
+    const SOCKET_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3001' : (location.protocol + '//' + location.hostname + ':3001');
+    let socket = null;
+    let watchId = null;
+
+    function setStatus(msg, cls) {
+      var el = document.getElementById('status');
+      if (el) { el.textContent = msg; el.className = 'status ' + (cls || 'off'); }
+    }
+
+    function startTracking() {
+      var bid = parseInt(document.getElementById('bookingId').value, 10);
+      if (!bid || bid < 1) { setStatus('กรุณาใส่เลขการจอง', 'err'); return; }
+      if (!navigator.geolocation) { setStatus('เบราว์เซอร์ไม่รองรับ GPS', 'err'); return; }
+
+      socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+      socket.on('connect', function() {
+        socket.emit('joinBooking', bid);
+        watchId = navigator.geolocation.watchPosition(
+          function(pos) {
+            socket.emit('sendLocation', { booking_id: bid, lat: pos.coords.latitude, lng: pos.coords.longitude });
+            setStatus('กำลังส่งตำแหน่ง... ' + pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5), 'on');
+          },
+          function(err) { setStatus('ไม่สามารถเข้าถึง GPS: ' + (err.message || 'Error'), 'err'); },
+          { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
+        );
+        document.getElementById('btnStart').style.display = 'none';
+        document.getElementById('btnStop').style.display = 'block';
+      });
+      socket.on('connect_error', function() { setStatus('เชื่อมต่อ Socket ไม่ได้ กรุณาเปิด Socket Server (npm run socket)', 'err'); });
+    }
+
+    function stopTracking() {
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      if (socket) { socket.disconnect(); socket = null; }
+      document.getElementById('btnStart').style.display = 'block';
+      document.getElementById('btnStop').style.display = 'none';
+      setStatus('หยุดส่งตำแหน่งแล้ว', 'off');
+    }
+  </script>
+</body>
+</html>

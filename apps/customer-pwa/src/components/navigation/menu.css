@@ -1,0 +1,94 @@
+/* BottomNav — คำนำหน้า bh- เพื่อไม่ชนกับ Tailwind / หน้าอื่น */
+.bh-bottom-nav {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92%;
+  max-width: 420px;
+  z-index: 9999;
+
+  background: rgba(18, 24, 38, 0.94) !important;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  padding: 8px 6px calc(10px + env(safe-area-inset-bottom, 0px));
+
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.bh-bottom-nav__inner {
+  position: relative;
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 52px;
+}
+
+.bh-bottom-nav__indicator {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  width: 25%;
+  height: 44px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  z-index: 0;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 114, 255, 0.35);
+}
+
+.bh-bottom-nav__item {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s ease;
+}
+
+.bh-bottom-nav__item--active {
+  color: #fff;
+}
+
+.bh-bottom-nav__item:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bh-bottom-nav__motion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.bh-bottom-nav__icon {
+  width: 22px;
+  height: 22px;
+  color: currentColor;
+}
+
+.bh-bottom-nav__label {
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+}

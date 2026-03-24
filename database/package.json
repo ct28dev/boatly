@@ -1,0 +1,23 @@
+{
+  "name": "boatly-database",
+  "version": "1.0.0",
+  "description": "BOATLY database migrations and seeds",
+  "scripts": {
+    "migrate": "knex migrate:latest --knexfile knexfile.ts",
+    "migrate:rollback": "knex migrate:rollback --knexfile knexfile.ts",
+    "migrate:status": "knex migrate:status --knexfile knexfile.ts",
+    "seed": "knex seed:run --knexfile knexfile.ts",
+    "seed:provinces": "knex seed:run --knexfile knexfile.ts --specific 001_provinces.ts",
+    "seed:sample": "knex seed:run --knexfile knexfile.ts --specific 002_sample_data.ts",
+    "schema:apply": "psql -f schema/complete-schema.sql"
+  },
+  "dependencies": {
+    "knex": "^3.1.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^22.0.0"
+  }
+}

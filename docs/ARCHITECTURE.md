@@ -1,0 +1,163 @@
+# BOATLY - System Architecture (Production Ready)
+
+## 1. High-Level Architecture
+
+```
+                    ┌─────────────────────────────────────────────────────────┐
+                    │                     USERS                                │
+                    │  (Mobile PWA / Web / Desktop)                            │
+                    └─────────────────────────┬───────────────────────────────┘
+                                              │
+                                              ▼
+                    ┌─────────────────────────────────────────────────────────┐
+                    │                  Cloudflare CDN                         │
+                    │  (Static assets, DDoS protection, SSL)                   │
+                    └─────────────────────────┬───────────────────────────────┘
+                                              │
+                                              ▼
+                    ┌─────────────────────────────────────────────────────────┐
+                    │              Next.js PWA Frontend                        │
+                    │  (SSR, Static export, Service Worker)                    │
+                    └─────────────────────────┬───────────────────────────────┘
+                                              │
+                                              ▼
+                    ┌─────────────────────────────────────────────────────────┐
+                    │                   API Gateway                             │
+                    │  (Rate limit, Auth, Routing)                             │
+                    └─────────────────────────┬───────────────────────────────┘
+                                              │
+                    ┌─────────────────────────┼───────────────────────────────┐
+                    │                         │                               │
+                    ▼                         ▼                               ▼
+        ┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
+        │ Authentication    │   │ Booking Service   │   │ Payment Service   │
+        │ Service           │   │                   │   │                   │
+        └───────────────────┘   └───────────────────┘   └───────────────────┘
+                    │                         │                               │
+                    ▼                         ▼                               ▼
+        ┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
+        │ Review Service    │   │ Location Service   │   │ Notification Svc  │
+        └───────────────────┘   └───────────────────┘   └───────────────────┘
+                    │                         │                               │
+                    └─────────────────────────┼───────────────────────────────┘
+                                              │
+                                              ▼
+                    ┌─────────────────────────────────────────────────────────┐
+                    │           Backend (Node.js / NestJS)                      │
+                    └─────────────────────────┬───────────────────────────────┘
+                                              │
+        ┌─────────────────────────────────────┼─────────────────────────────────────┐
+        │                                     │                                     │
+        ▼                                     ▼                                     ▼
+┌───────────────┐                   ┌───────────────┐                   ┌───────────────┐
+│  PostgreSQL   │                   │  Redis Cache  │                   │  S3 / R2      │
+│  (Primary DB) │                   │  (Session)    │                   │  (Images)     │
+└───────────────┘                   └───────────────┘                   └───────────────┘
+        │                                     │
+        └─────────────────────────────────────┘
+                                              │
+                    ┌─────────────────────────┼───────────────────────────────┐
+                    │                         │                               │
+                    ▼                         ▼                               ▼
+        ┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
+        │ Map Service       │   │ Payment Gateway   │   │ CI/CD Pipeline    │
+        │ (Leaflet/OSM)     │   │ (PromptPay/Stripe) │   │ (GitHub Actions)  │
+        └───────────────────┘   └───────────────────┘   └───────────────────┘
+```
+
+---
+
+## 2. Cloud Infrastructure (Startup-Optimized)
+
+| Component | Recommended | Alternative |
+|-----------|-------------|-------------|
+| **Frontend** | Vercel | Netlify, Cloudflare Pages |
+| **Backend** | DigitalOcean App Platform | Railway, Render, Fly.io |
+| **Database** | Managed PostgreSQL (DO/Neon/Supabase) | AWS RDS |
+| **Cache** | Redis (Upstash/Redis Cloud) | ElastiCache |
+| **Storage** | AWS S3 / Cloudflare R2 | DigitalOcean Spaces |
+| **CDN** | Cloudflare | Vercel Edge |
+| **Maps** | Leaflet + OpenStreetMap | Google Maps API |
+
+---
+
+## 3. CI/CD Pipeline
+
+```
+GitHub Repository
+        │
+        ▼
+   Pull Request
+        │
+        ├──► Lint (ESLint)
+        ├──► Unit Tests (Jest/Vitest)
+        ├──► E2E Tests (Playwright)
+        │
+        ▼
+   Merge to main
+        │
+        ├──► Docker Build
+        ├──► Push to Registry
+        ├──► Deploy Backend
+        └──► Deploy Frontend (Vercel)
+```
+
+---
+
+## 4. Database Schema Summary (30 Tables)
+
+| # | Table | Purpose |
+|---|-------|---------|
+| 1 | users | User accounts |
+| 2 | user_auth | OAuth / social login |
+| 3 | destinations | Provinces/regions |
+| 4 | piers | Boarding points |
+| 5 | operators | Boat operators |
+| 6 | operator_users | Operator staff |
+| 7 | boats | Boat listings |
+| 8 | boat_images | Boat photos |
+| 9 | boat_routes | Route definitions |
+| 10 | route_stops | Route waypoints |
+| 11 | addons | Add-on services |
+| 12 | boat_availability | Time slots |
+| 13 | bookings | Reservations |
+| 14 | booking_passengers | Passenger breakdown |
+| 15 | booking_requests | Special requests |
+| 16 | booking_checkins | Check-in records |
+| 17 | payments | Payment records |
+| 18 | payment_transactions | Transaction log |
+| 19 | reviews | Customer reviews |
+| 20 | review_images | Review photos |
+| 21 | user_favorites | Saved boats |
+| 22 | notifications | User notifications |
+| 23 | promotions | Promo banners |
+| 24 | boat_locations | Live tracking |
+| 25 | tips | Crew tips |
+| 26 | settings | System config |
+| 27 | audit_log | Change history |
+| 28 | device_tokens | Push tokens |
+| 29 | promo_usage | Promo redemption |
+| 30 | api_keys | External API keys |
+
+---
+
+## 5. API Service Boundaries
+
+| Service | Responsibilities |
+|---------|------------------|
+| **Auth** | Login, register, JWT, OAuth, password reset |
+| **Booking** | Create, list, cancel, availability check |
+| **Payment** | Create payment, confirm, refund, webhook |
+| **Review** | Create, list, moderate, images |
+| **Location** | Map data, boat tracking, pier lookup |
+| **Notification** | Push, in-app, email |
+
+---
+
+## 6. Security Considerations
+
+- **Auth**: JWT with short expiry + refresh token
+- **API**: Rate limiting per IP/user
+- **DB**: Parameterized queries, least privilege
+- **Storage**: Signed URLs for private objects
+- **Secrets**: Environment variables, Vault

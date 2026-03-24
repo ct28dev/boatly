@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+.turbo/
+*.log
+.env
+.env.local
+.env.*.local
+api/config/oauth.local.php
+api/config/email.local.php
+uploads/settings/payment_settings.json
+uploads/operators/
+.DS_Store
+coverage/
+.nyc_output/
+*.tsbuildinfo

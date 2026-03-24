@@ -1,0 +1,196 @@
+name: Deploy Pipeline
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    branches: [main]
+    types: [completed]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # Deploy to Staging
+  # ──────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: staging
+      url: https://staging.boatly.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Option A: Deploy to AWS EC2 via SSH ──
+      - name: Deploy to staging server (SSH)
+        if: ${{ vars.DEPLOY_TARGET == 'ec2' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/boatly
+            git pull origin main
+            docker compose -f infrastructure/docker/docker-compose.yml pull
+            docker compose -f infrastructure/docker/docker-compose.yml up -d
+            sleep 10
+            curl -f http://localhost/nginx-health || exit 1
+            echo "Staging deployment successful"
+
+      # ── Option B: Deploy to AWS ECS ──
+      - name: Configure AWS Credentials (ECS)
+        if: ${{ vars.DEPLOY_TARGET == 'ecs' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+
+      - name: Deploy to ECS
+        if: ${{ vars.DEPLOY_TARGET == 'ecs' }}
+        run: |
+          aws ecs update-service \
+            --cluster boatly-staging \
+            --service boatly-backend \
+            --force-new-deployment
+          aws ecs update-service \
+            --cluster boatly-staging \
+            --service boatly-customer-pwa \
+            --force-new-deployment
+          aws ecs update-service \
+            --cluster boatly-staging \
+            --service boatly-admin-dashboard \
+            --force-new-deployment
+
+      # ── Option C: Deploy to Vercel (frontends only) ──
+      - name: Deploy Customer PWA to Vercel
+        if: ${{ vars.DEPLOY_TARGET == 'vercel' }}
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_CUSTOMER_PROJECT_ID }}
+          working-directory: apps/customer-pwa
+
+      - name: Deploy Admin Dashboard to Vercel
+        if: ${{ vars.DEPLOY_TARGET == 'vercel' }}
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+          working-directory: apps/admin-dashboard
+
+      - name: Verify staging deployment
+        run: |
+          echo "Waiting for services to stabilize..."
+          sleep 15
+          echo "Staging deployment triggered successfully"
+
+  # ──────────────────────────────────────────────────────────────────
+  # Deploy to Production (requires manual approval)
+  # ──────────────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment:
+      name: production
+      url: https://boatly.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Option A: Deploy to AWS EC2 via SSH ──
+      - name: Deploy to production server (SSH)
+        if: ${{ vars.DEPLOY_TARGET == 'ec2' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/boatly
+            git pull origin main
+            docker compose -f infrastructure/docker/docker-compose.yml pull
+            docker compose -f infrastructure/docker/docker-compose.yml up -d --remove-orphans
+            sleep 15
+            curl -f http://localhost/nginx-health || exit 1
+            docker system prune -f
+            echo "Production deployment successful"
+
+      # ── Option B: Deploy to AWS ECS ──
+      - name: Configure AWS Credentials (ECS)
+        if: ${{ vars.DEPLOY_TARGET == 'ecs' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+
+      - name: Deploy to ECS
+        if: ${{ vars.DEPLOY_TARGET == 'ecs' }}
+        run: |
+          aws ecs update-service \
+            --cluster boatly-production \
+            --service boatly-backend \
+            --force-new-deployment
+          aws ecs update-service \
+            --cluster boatly-production \
+            --service boatly-customer-pwa \
+            --force-new-deployment
+          aws ecs update-service \
+            --cluster boatly-production \
+            --service boatly-admin-dashboard \
+            --force-new-deployment
+
+      # ── Option C: Deploy to Vercel (frontends only, production) ──
+      - name: Deploy Customer PWA to Vercel (Production)
+        if: ${{ vars.DEPLOY_TARGET == 'vercel' }}
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_CUSTOMER_PROJECT_ID }}
+          vercel-args: "--prod"
+          working-directory: apps/customer-pwa
+
+      - name: Deploy Admin Dashboard to Vercel (Production)
+        if: ${{ vars.DEPLOY_TARGET == 'vercel' }}
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+          vercel-args: "--prod"
+          working-directory: apps/admin-dashboard
+
+      - name: Post-deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "Production deployment completed successfully!"
+          else
+            echo "Production deployment failed — investigate immediately"
+          fi

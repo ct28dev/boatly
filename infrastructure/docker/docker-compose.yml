@@ -1,0 +1,151 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL Database ────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: boatly-postgres
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER:-boatly}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-boatly_secret}
+      POSTGRES_DB: ${DB_NAME:-boatly}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - boatly-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-boatly} -d ${DB_NAME:-boatly}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─── Redis Cache ────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: boatly-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - boatly-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API (NestJS) ──────────────────────────────────────────
+  backend:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.backend
+    container_name: boatly-backend
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-4000}:4000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-boatly}:${DB_PASSWORD:-boatly_secret}@postgres:5432/${DB_NAME:-boatly}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-boatly}
+      DB_USER: ${DB_USER:-boatly}
+      DB_PASSWORD: ${DB_PASSWORD:-boatly_secret}
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      API_PORT: 4000
+      API_PREFIX: /api/v1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - boatly-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ─── Customer PWA (Next.js) ────────────────────────────────────────
+  customer-pwa:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.customer-pwa
+    container_name: boatly-customer-pwa
+    restart: unless-stopped
+    ports:
+      - "${CUSTOMER_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/v1}
+      NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - boatly-network
+
+  # ─── Admin Dashboard (Next.js) ─────────────────────────────────────
+  admin-dashboard:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.admin
+    container_name: boatly-admin-dashboard
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/v1}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3001}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - boatly-network
+
+  # ─── Nginx Reverse Proxy ───────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: boatly-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/conf.d:/etc/nginx/conf.d:ro
+      # Uncomment when SSL certificates are available
+      # - ./ssl/certs:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - customer-pwa
+      - admin-dashboard
+    networks:
+      - boatly-network
+
+networks:
+  boatly-network:
+    driver: bridge
+    name: boatly-network
+
+volumes:
+  postgres-data:
+    name: boatly-postgres-data
+  redis-data:
+    name: boatly-redis-data
