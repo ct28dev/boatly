@@ -54,11 +54,6 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'cdn.boatly.co.th' },
     ],
   },
-  i18n: {
-    locales: ['th', 'en'],
-    defaultLocale: 'th',
-    localeDetection: true,
-  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_MAPBOX_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
