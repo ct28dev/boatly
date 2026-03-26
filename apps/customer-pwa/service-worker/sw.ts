@@ -120,6 +120,13 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   }
 });
 
+/** Same shape as NotificationAction (not in default webworker typings). */
+interface PushNotificationAction {
+  action: string;
+  title: string;
+  icon?: string;
+}
+
 interface PushPayload {
   title: string;
   body: string;
@@ -130,7 +137,7 @@ interface PushPayload {
     bookingId?: string;
     type?: string;
   };
-  actions?: NotificationAction[];
+  actions?: PushNotificationAction[];
 }
 
 self.addEventListener('push', (event: PushEvent) => {
