@@ -2,10 +2,9 @@
   "name": "boatly",
   "version": "1.0.0",
   "private": true,
-  "description": "BOATLY - Thailand Boat Tourism Platform",
+  "description": "BOATLY",
   "scripts": {
-    "socket": "node socket-server.js",
-    "dev": "turbo run dev",
-    "build": "turbo run build"
+    "dev": "echo dev",
+    "build": "echo build"
   }
 }

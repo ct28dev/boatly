@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd ../.. && npx pnpm@8.6.0 install",
+  "buildCommand": "cd ../.. && npx pnpm@8.6.0 exec turbo run build --filter=@boatly/customer-pwa"
+}
