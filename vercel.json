@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
   "installCommand": "npx pnpm@8.15.9 install",
   "buildCommand": "npx pnpm@8.15.9 exec turbo run build --filter=@boatly/customer-pwa"
 }

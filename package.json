@@ -23,10 +23,12 @@
   },
   "dependencies": {
     "mysql2": "^3.11.0",
-    "socket.io": "^4.7.0"
+    "socket.io": "^4.7.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "next": "^15.1.0",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   },
