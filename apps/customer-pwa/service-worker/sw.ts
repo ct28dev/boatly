@@ -145,16 +145,17 @@ self.addEventListener('push', (event: PushEvent) => {
 
   const payload: PushPayload = event.data.json();
 
-  const options: NotificationOptions = {
+  // lib.webworker กำหนด NotificationOptions ไม่มี `actions` — ต้อง double-cast
+  const options = {
     body: payload.body,
     icon: payload.icon || '/icons/icon-192.png',
     badge: payload.badge || '/icons/icon-72.png',
     data: payload.data,
-    actions: payload.actions || [],
+    actions: payload.actions ?? [],
     vibrate: [200, 100, 200],
     tag: payload.data?.type || 'default',
     renotify: true,
-  };
+  } as unknown as NotificationOptions;
 
   event.waitUntil(self.registration.showNotification(payload.title, options));
 });
