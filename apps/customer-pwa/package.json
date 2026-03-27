@@ -38,6 +38,7 @@
     "swiper": "^11.1.0"
   },
   "devDependencies": {
+    "@types/minimatch": "^5.1.2",
     "typescript": "^5.7.0",
     "@types/react": "^19.0.0",
     "@types/node": "^22.10.0",
